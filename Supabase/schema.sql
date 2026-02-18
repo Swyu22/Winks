@@ -1,0 +1,69 @@
+-- Open schema for Winks links
+-- Strategy:
+-- 1) Public (anon) can read and write
+-- 2) Frontend PIN is used for edit/delete interaction guard
+
+create extension if not exists "pgcrypto";
+
+create table if not exists public.links (
+  id uuid primary key default gen_random_uuid(),
+  created_at timestamptz not null default now(),
+  title text not null check (char_length(title) <= 200),
+  url text not null check (url ~* '^https?://'),
+  category text not null default '设计' check (char_length(category) <= 50),
+  created_by uuid references auth.users(id) on delete set null
+);
+
+alter table public.links
+  add column if not exists created_by uuid references auth.users(id) on delete set null;
+
+alter table public.links
+  alter column created_by set default auth.uid();
+
+create index if not exists links_created_at_idx on public.links (created_at desc);
+create index if not exists links_created_by_idx on public.links (created_by);
+
+alter table public.links enable row level security;
+
+-- Reset legacy/open policies
+drop policy if exists "Enable read access for all users" on public.links;
+drop policy if exists "Enable insert access for all users" on public.links;
+drop policy if exists "Enable update access for all users" on public.links;
+drop policy if exists "Enable delete access for all users" on public.links;
+drop policy if exists "Public can read links" on public.links;
+drop policy if exists "Public can insert links" on public.links;
+drop policy if exists "Public can update links" on public.links;
+drop policy if exists "Public can delete links" on public.links;
+drop policy if exists "Authenticated users can insert own links" on public.links;
+drop policy if exists "Authenticated users can update own links" on public.links;
+drop policy if exists "Authenticated users can delete own links" on public.links;
+
+-- Open table-level grants
+revoke all on table public.links from anon, authenticated;
+grant select, insert, update, delete on table public.links to anon, authenticated;
+
+-- RLS policies
+create policy "Public can read links"
+on public.links
+for select
+to anon, authenticated
+using (true);
+
+create policy "Public can insert links"
+on public.links
+for insert
+to anon, authenticated
+with check (true);
+
+create policy "Public can update links"
+on public.links
+for update
+to anon, authenticated
+using (true)
+with check (true);
+
+create policy "Public can delete links"
+on public.links
+for delete
+to anon, authenticated
+using (true);

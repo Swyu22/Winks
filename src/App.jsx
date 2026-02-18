@@ -1,0 +1,578 @@
+import { useState, useEffect, useMemo } from 'react';
+import { Plus, ExternalLink, Search, Loader2, X, Zap, Pencil, Trash2, Lock } from 'lucide-react';
+import { createClient } from '@supabase/supabase-js';
+
+// ==========================================
+// 🚀 部署配置开关 (DEPLOYMENT CONFIG)
+// ==========================================
+// 本地开发预览设为 true。
+// 正式上线连接 Supabase 时设为 false，并确保配置了 .env 环境变量。
+const USE_DEMO_MODE = false; 
+
+// ==========================================
+// 🛠️ 初始化 Supabase
+// ==========================================
+let supabase = null;
+
+if (!USE_DEMO_MODE) {
+  // 生产环境配置
+  const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+  const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
+  
+  if (supabaseUrl && supabaseKey) {
+    supabase = createClient(supabaseUrl, supabaseKey);
+  } else {
+    console.error("缺少 Supabase 环境变量!");
+  }
+}
+
+// ==========================================
+// 🧩 辅助工具
+// ==========================================
+const getFaviconUrl = (url) => {
+  try {
+    const domain = new URL(url).hostname;
+    return `https://www.google.com/s2/favicons?domain=${domain}&sz=64`;
+  } catch (e) {
+    return null;
+  }
+};
+
+const DEFAULT_CATEGORIES = ['设计', '开发', '工具', '阅读', '灵感'];
+
+// ==========================================
+// 🔐 安全组件 (Security)
+// ==========================================
+
+const PinModal = ({ isOpen, onClose, onSuccess }) => {
+  const [pin, setPin] = useState('');
+  const [error, setError] = useState(false);
+
+  useEffect(() => {
+    if (isOpen) {
+      setPin('');
+      setError(false);
+    }
+  }, [isOpen]);
+
+  if (!isOpen) return null;
+
+  const handleSubmit = (e) => {
+    e.preventDefault();
+    if (pin === '5185') {
+      onSuccess();
+      onClose();
+    } else {
+      setError(true);
+      setPin('');
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-200">
+      <div className="w-full max-w-xs bg-white rounded-2xl shadow-2xl p-6 relative zoom-in-95 duration-200">
+        <button onClick={onClose} className="absolute top-4 right-4 text-gray-400 hover:text-gray-800">
+          <X className="w-4 h-4" />
+        </button>
+        <div className="text-center mb-6">
+          <div className="w-10 h-10 bg-yellow-100 rounded-full flex items-center justify-center mx-auto mb-3 text-yellow-600">
+            <Lock className="w-5 h-5" />
+          </div>
+          <h3 className="font-bold text-gray-900">安全验证</h3>
+          <p className="text-xs text-gray-500 mt-1">执行此操作需要管理员密码</p>
+        </div>
+        <form onSubmit={handleSubmit}>
+          <input
+            autoFocus
+            type="password"
+            maxLength={4}
+            placeholder="输入密码"
+            className={`w-full text-center text-2xl tracking-[0.5em] font-bold h-12 rounded-xl bg-gray-50 border-2 outline-none transition-all ${error ? 'border-red-400 bg-red-50 text-red-500 placeholder-red-300' : 'border-gray-100 focus:border-yellow-400 focus:bg-white text-gray-800'}`}
+            value={pin}
+            onChange={(e) => {
+              setPin(e.target.value);
+              setError(false);
+            }}
+          />
+          {error && <p className="text-red-500 text-xs text-center mt-2 font-bold">密码错误</p>}
+          <button type="submit" className="w-full mt-4 h-10 bg-gray-900 text-white rounded-lg font-bold text-sm hover:bg-black transition-colors">
+            确认
+          </button>
+        </form>
+      </div>
+    </div>
+  );
+};
+
+// ==========================================
+// 🎨 业务组件 (Components)
+// ==========================================
+
+const Logo = () => (
+  <div className="flex items-center gap-2 group cursor-pointer select-none">
+    <div className="w-8 h-8 rounded-full bg-yellow-400 flex items-center justify-center shadow-[0_0_10px_rgba(250,204,21,0.4)] group-hover:shadow-[0_0_15px_rgba(250,204,21,0.6)] transition-all duration-300">
+      <Zap className="w-5 h-5 text-white fill-white" />
+    </div>
+    <span className="font-bold text-xl tracking-tight text-gray-800">Winks.闪链</span>
+  </div>
+);
+
+const LinkCard = ({ link, onEdit, onDelete }) => {
+  const [imgError, setImgError] = useState(false);
+  const favicon = getFaviconUrl(link.url);
+
+  return (
+    <div className="group relative flex flex-col p-6 h-40 bg-white rounded-2xl border border-gray-100 transition-all duration-300 hover:-translate-y-1 hover:border-yellow-200 hover:shadow-[0_0_30px_rgba(250,204,21,0.25)]">
+      <div className="absolute top-4 right-4 flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity duration-200 z-10">
+        <button
+          onClick={(e) => { e.preventDefault(); onEdit(link); }}
+          className="p-1.5 bg-gray-100 hover:bg-yellow-400 hover:text-white rounded-lg text-gray-500 transition-colors"
+          title="编辑"
+        >
+          <Pencil className="w-3.5 h-3.5" />
+        </button>
+        <button
+          onClick={(e) => { e.preventDefault(); onDelete(link); }}
+          className="p-1.5 bg-gray-100 hover:bg-red-500 hover:text-white rounded-lg text-gray-500 transition-colors"
+          title="删除"
+        >
+          <Trash2 className="w-3.5 h-3.5" />
+        </button>
+      </div>
+
+      <a href={link.url} target="_blank" rel="noopener noreferrer" className="flex-1 flex flex-col">
+        <div className="flex items-start justify-between mb-4">
+          <div className="relative">
+            {!imgError && favicon ? (
+              <img
+                src={favicon}
+                alt={link.title}
+                onError={() => setImgError(true)}
+                className="w-10 h-10 rounded-lg object-contain bg-gray-50 p-1"
+              />
+            ) : (
+              <div className="w-10 h-10 rounded-lg bg-yellow-100 flex items-center justify-center text-yellow-600 font-bold text-lg">
+                {link.title.charAt(0).toUpperCase()}
+              </div>
+            )}
+          </div>
+          <ExternalLink className="w-4 h-4 text-gray-300 group-hover:opacity-0 transition-opacity" />
+        </div>
+        
+        <div className="mt-auto">
+          <h3 className="font-bold text-gray-800 truncate pr-4 text-lg group-hover:text-yellow-600 transition-colors">
+            {link.title}
+          </h3>
+          <span className="inline-block mt-1 text-xs font-medium text-gray-400 bg-gray-50 px-2 py-0.5 rounded-full">
+            {link.category}
+          </span>
+        </div>
+      </a>
+    </div>
+  );
+};
+
+// Unified Modal for Add and Edit
+const LinkModal = ({ isOpen, onClose, onSave, initialData, categories, onAddCategory }) => {
+  const [formData, setFormData] = useState({ title: '', url: '', category: '设计' });
+  const [loading, setLoading] = useState(false);
+  const [isAddingCategory, setIsAddingCategory] = useState(false);
+  const [newCategoryName, setNewCategoryName] = useState('');
+
+  // Reset or Fill form data
+  useEffect(() => {
+    if (isOpen) {
+      if (initialData) {
+        setFormData(initialData);
+      } else {
+        setFormData({ title: '', url: '', category: categories[0] || '设计' });
+      }
+      setIsAddingCategory(false);
+      setNewCategoryName('');
+    }
+  }, [isOpen, initialData, categories]);
+
+  if (!isOpen) return null;
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    setLoading(true);
+    
+    let finalUrl = formData.url;
+    if (!/^https?:\/\//i.test(finalUrl)) {
+      finalUrl = 'https://' + finalUrl;
+    }
+
+    if (USE_DEMO_MODE) await new Promise(r => setTimeout(r, 600));
+
+    await onSave({ ...formData, url: finalUrl });
+    setLoading(false);
+    onClose();
+  };
+
+  const handleCreateCategory = () => {
+    if (newCategoryName.trim()) {
+      onAddCategory(newCategoryName.trim());
+      setFormData({ ...formData, category: newCategoryName.trim() });
+      setIsAddingCategory(false);
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-white/80 backdrop-blur-sm transition-all duration-300 animate-in fade-in">
+      <div className="w-full max-w-md bg-white rounded-3xl shadow-[0_10px_40px_-10px_rgba(0,0,0,0.1)] border border-gray-100 p-8 relative zoom-in-95 duration-200">
+        <button onClick={onClose} className="absolute top-6 right-6 text-gray-400 hover:text-gray-800">
+          <X className="w-5 h-5" />
+        </button>
+
+        <h2 className="text-2xl font-bold text-gray-800 mb-1">
+          {initialData ? '编辑闪链' : '新增闪链'}
+        </h2>
+        <p className="text-gray-400 text-sm mb-6">
+          {initialData ? '修改现有的网站信息。' : '添加一个新的公共网站到收藏集。'}
+        </p>
+
+        <form onSubmit={handleSubmit} className="space-y-4">
+          {/* Title */}
+          <div>
+            <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-1.5 ml-1">标题</label>
+            <input
+              required
+              type="text"
+              placeholder="例如: Stripe"
+              className="w-full h-12 px-4 rounded-xl bg-gray-50 border-transparent focus:bg-white focus:border-yellow-400 focus:ring-4 focus:ring-yellow-100 transition-all outline-none font-medium text-gray-800 placeholder-gray-300"
+              value={formData.title}
+              onChange={e => setFormData({...formData, title: e.target.value})}
+            />
+          </div>
+
+          {/* URL */}
+          <div>
+            <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-1.5 ml-1">链接地址</label>
+            <input
+              required
+              type="text"
+              placeholder="stripe.com"
+              className="w-full h-12 px-4 rounded-xl bg-gray-50 border-transparent focus:bg-white focus:border-yellow-400 focus:ring-4 focus:ring-yellow-100 transition-all outline-none font-medium text-gray-800 placeholder-gray-300"
+              value={formData.url}
+              onChange={e => setFormData({...formData, url: e.target.value})}
+            />
+          </div>
+
+          {/* Category */}
+          <div>
+            <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-1.5 ml-1">分类</label>
+            
+            <div className="flex flex-wrap gap-2 mb-2">
+              {categories.map(cat => (
+                <button
+                  key={cat}
+                  type="button"
+                  onClick={() => setFormData({...formData, category: cat})}
+                  className={`h-8 px-3 text-xs font-bold rounded-lg border transition-all ${
+                    formData.category === cat 
+                    ? 'bg-yellow-400 border-yellow-400 text-white shadow-md' 
+                    : 'bg-white border-gray-100 text-gray-500 hover:border-yellow-200'
+                  }`}
+                >
+                  {cat}
+                </button>
+              ))}
+              
+              {!isAddingCategory && (
+                <button
+                  type="button"
+                  onClick={() => setIsAddingCategory(true)}
+                  className="h-8 px-3 text-xs font-bold rounded-lg border border-dashed border-gray-300 text-gray-400 hover:border-yellow-400 hover:text-yellow-600 flex items-center gap-1 bg-gray-50 hover:bg-white transition-all"
+                >
+                  <Plus className="w-3 h-3" /> 新增
+                </button>
+              )}
+            </div>
+
+            {isAddingCategory && (
+              <div className="flex gap-2 animate-in fade-in slide-in-from-top-2">
+                <input
+                  autoFocus
+                  type="text"
+                  placeholder="输入新分类名称..."
+                  className="flex-1 h-10 px-3 rounded-lg bg-white border border-yellow-200 focus:ring-2 focus:ring-yellow-100 outline-none text-sm"
+                  value={newCategoryName}
+                  onChange={e => setNewCategoryName(e.target.value)}
+                />
+                <button
+                  type="button"
+                  onClick={handleCreateCategory}
+                  className="h-10 px-4 bg-yellow-400 text-white rounded-lg text-sm font-bold hover:shadow-lg"
+                >
+                  确认
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setIsAddingCategory(false)}
+                  className="h-10 w-10 flex items-center justify-center bg-gray-100 text-gray-500 rounded-lg hover:bg-gray-200"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+            )}
+          </div>
+
+          <button
+            type="submit"
+            disabled={loading}
+            className="w-full h-12 mt-4 bg-gray-900 text-white font-bold rounded-xl hover:bg-black hover:shadow-lg hover:shadow-yellow-400/20 active:scale-[0.98] transition-all flex items-center justify-center gap-2"
+          >
+            {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : (initialData ? '保存修改' : '保存闪链')}
+          </button>
+        </form>
+      </div>
+    </div>
+  );
+};
+
+// ==========================================
+// 🚀 主程序 (Main App)
+// ==========================================
+
+export default function App() {
+  const [links, setLinks] = useState([]);
+  const [categories, setCategories] = useState(DEFAULT_CATEGORIES);
+  const [filter, setFilter] = useState('全部');
+  const [loading, setLoading] = useState(true);
+
+  // States
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [editingLink, setEditingLink] = useState(null); 
+  const [isPinOpen, setIsPinOpen] = useState(false);
+  const [pendingAction, setPendingAction] = useState(null);
+
+  useEffect(() => {
+    fetchLinks();
+  }, []);
+
+  const showSupabaseError = (action, error) => {
+    const message = error?.message || '未知错误';
+    console.error(`${action}失败:`, message);
+    alert(`${action}失败：${message}`);
+  };
+
+  const fetchLinks = async () => {
+    setLoading(true);
+    
+    if (USE_DEMO_MODE) {
+      setTimeout(() => {
+        const demoLinks = [
+          { id: 1, title: 'Supabase', url: 'https://supabase.com', category: '工具' },
+          { id: 2, title: 'Tailwind CSS', url: 'https://tailwindcss.com', category: '开发' },
+          { id: 3, title: 'Dribbble', url: 'https://dribbble.com', category: '灵感' },
+          { id: 4, title: 'Framer', url: 'https://framer.com', category: '设计' },
+          { id: 5, title: 'Linear', url: 'https://linear.app', category: '工具' },
+        ];
+        setLinks(demoLinks);
+        const existingCats = new Set([...DEFAULT_CATEGORIES, ...demoLinks.map(l => l.category)]);
+        setCategories(Array.from(existingCats));
+        setLoading(false);
+      }, 800);
+    } else if (supabase) {
+      const { data, error } = await supabase
+        .from('links')
+        .select('*')
+        .order('created_at', { ascending: false });
+
+      if (error) {
+        showSupabaseError('加载数据', error);
+      } else if (data) {
+        setLinks(data);
+        const existingCats = new Set([...DEFAULT_CATEGORIES, ...data.map((l) => l.category)]);
+        setCategories(Array.from(existingCats));
+      }
+      setLoading(false);
+    }
+  };
+
+  const requestAuth = (action) => {
+    setPendingAction(action);
+    setIsPinOpen(true);
+  };
+
+  const handlePinSuccess = () => {
+    if (!pendingAction) return;
+
+    const { type, payload } = pendingAction;
+    
+    if (type === 'DELETE') {
+      executeDelete(payload);
+    } else if (type === 'EDIT') {
+      setEditingLink(payload);
+      setIsModalOpen(true);
+    } else if (type === 'ADD_CATEGORY') {
+      executeAddCategory(payload);
+    }
+    
+    setPendingAction(null);
+  };
+
+  const executeAddCategory = (newCat) => {
+    if (!categories.includes(newCat)) {
+      setCategories([...categories, newCat]);
+    }
+  };
+
+  const executeDelete = async (linkToDelete) => {
+    if (USE_DEMO_MODE) {
+      setLinks((prev) => prev.filter((l) => l.id !== linkToDelete.id));
+    } else if (supabase) {
+      const { error } = await supabase.from('links').delete().eq('id', linkToDelete.id);
+      if (error) {
+        showSupabaseError('删除链接', error);
+        return;
+      }
+      setLinks((prev) => prev.filter((l) => l.id !== linkToDelete.id));
+    }
+  };
+
+  const handleSaveLink = async (linkData) => {
+    if (editingLink) {
+      // Update
+      if (USE_DEMO_MODE) {
+        setLinks((prev) => prev.map((l) => (l.id === editingLink.id ? { ...l, ...linkData } : l)));
+      } else if (supabase) {
+        const { error } = await supabase.from('links').update(linkData).eq('id', editingLink.id);
+        if (error) {
+          showSupabaseError('更新链接', error);
+          return;
+        }
+        await fetchLinks();
+      }
+    } else {
+      // Create
+      const newLink = { ...linkData, id: Date.now() };
+      if (USE_DEMO_MODE) {
+        setLinks((prev) => [newLink, ...prev]);
+      } else if (supabase) {
+        const { data, error } = await supabase.from('links').insert([linkData]).select();
+        if (error) {
+          showSupabaseError('新增链接', error);
+          return;
+        }
+        if (data?.[0]) {
+          setLinks((prev) => [data[0], ...prev]);
+        }
+      }
+    }
+  };
+
+  const filteredLinks = useMemo(() => {
+    if (filter === '全部') return links;
+    return links.filter(l => l.category === filter);
+  }, [links, filter]);
+
+  return (
+    <div className="min-h-screen bg-gray-50 text-gray-900 font-sans selection:bg-yellow-200 flex flex-col">
+      <nav className="fixed top-0 left-0 right-0 z-40 bg-white/80 backdrop-blur-md border-b border-gray-100">
+        <div className="max-w-7xl mx-auto px-6 h-20 flex items-center justify-between">
+          <Logo />
+          <div className="flex items-center gap-4">
+            <button
+              onClick={() => { setEditingLink(null); setIsModalOpen(true); }}
+              className="bg-gray-900 hover:bg-black text-white px-5 py-2.5 rounded-full font-bold text-sm transition-all hover:shadow-[0_4px_20px_-5px_rgba(0,0,0,0.3)] hover:scale-105 active:scale-95 flex items-center gap-2"
+            >
+              <Plus className="w-4 h-4" />
+              <span className="hidden sm:inline">新增闪链</span>
+            </button>
+          </div>
+        </div>
+      </nav>
+
+      <main className="max-w-7xl mx-auto px-6 pt-32 pb-20 flex-grow w-full">
+        <div className="mb-12 text-center sm:text-left">
+          <h1 className="text-4xl sm:text-5xl font-extrabold text-gray-900 mb-4 tracking-tight">
+            精选优质网站 <span className="text-yellow-400 inline-block animate-pulse">.</span>
+          </h1>
+          <p className="text-gray-500 text-lg max-w-xl">
+            极简主义的必备网站合集。
+            无需登录，任何人均可读写。
+          </p>
+        </div>
+
+        <div className="flex flex-wrap items-center gap-2 mb-10 overflow-x-auto pb-4 scrollbar-hide">
+          <button
+            onClick={() => setFilter('全部')}
+            className={`px-4 py-2 rounded-full text-sm font-bold transition-all whitespace-nowrap ${
+              filter === '全部'
+                ? 'bg-yellow-400 text-white shadow-[0_4px_15px_rgba(250,204,21,0.4)]'
+                : 'bg-white text-gray-500 border border-gray-100 hover:border-yellow-200 hover:text-yellow-500'
+            }`}
+          >
+            全部
+          </button>
+          {categories.map(cat => (
+            <button
+              key={cat}
+              onClick={() => setFilter(cat)}
+              className={`px-4 py-2 rounded-full text-sm font-bold transition-all whitespace-nowrap ${
+                filter === cat
+                  ? 'bg-yellow-400 text-white shadow-[0_4px_15px_rgba(250,204,21,0.4)]'
+                  : 'bg-white text-gray-500 border border-gray-100 hover:border-yellow-200 hover:text-yellow-500'
+              }`}
+            >
+              {cat}
+            </button>
+          ))}
+        </div>
+
+        {loading ? (
+          <div className="flex justify-center items-center py-20">
+            <Loader2 className="w-8 h-8 text-yellow-400 animate-spin" />
+          </div>
+        ) : (
+          <>
+            {filteredLinks.length > 0 ? (
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+                {filteredLinks.map(link => (
+                  <LinkCard 
+                    key={link.id} 
+                    link={link} 
+                    onEdit={() => requestAuth({ type: 'EDIT', payload: link })}
+                    onDelete={() => requestAuth({ type: 'DELETE', payload: link })}
+                  />
+                ))}
+              </div>
+            ) : (
+              <div className="text-center py-20 border-2 border-dashed border-gray-200 rounded-3xl">
+                <div className="w-16 h-16 bg-gray-50 rounded-full flex items-center justify-center mx-auto mb-4 text-gray-300">
+                  <Search className="w-8 h-8" />
+                </div>
+                <h3 className="text-gray-900 font-bold text-lg">未找到闪链</h3>
+                <p className="text-gray-400 mt-1">尝试切换分类或添加新的闪链。</p>
+              </div>
+            )}
+          </>
+        )}
+      </main>
+
+      {/* Main Form Modal */}
+      <LinkModal
+        isOpen={isModalOpen}
+        onClose={() => setIsModalOpen(false)}
+        onSave={handleSaveLink}
+        initialData={editingLink}
+        categories={categories}
+        onAddCategory={(newCat) => requestAuth({ type: 'ADD_CATEGORY', payload: newCat })}
+      />
+      
+      {/* Security Pin Modal */}
+      <PinModal 
+        isOpen={isPinOpen} 
+        onClose={() => setIsPinOpen(false)}
+        onSuccess={handlePinSuccess}
+      />
+      
+      <footer className="text-center py-8 text-gray-400 text-xs font-medium leading-relaxed bg-white/50 border-t border-gray-100">
+        <p>Copyright © 2011-2026 WithMedia Co.Ltd all rights reserved</p>
+        <p className="mt-1 opacity-70">内部使用 请勿外传</p>
+      </footer>
+    </div>
+  );
+}
