@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo } from 'react';
-import { Plus, ExternalLink, Search, Loader2, X, Zap, Pencil, Trash2, Lock } from 'lucide-react';
+import { Plus, Search, Loader2, X, Zap, Pencil, Trash2, Lock } from 'lucide-react';
 import { createClient } from '@supabase/supabase-js';
 
 // ==========================================
@@ -13,6 +13,7 @@ const USE_DEMO_MODE = false;
 // 🛠️ 初始化 Supabase
 // ==========================================
 let supabase = null;
+let supabaseInitError = '';
 
 if (!USE_DEMO_MODE) {
   // 生产环境配置
@@ -22,7 +23,8 @@ if (!USE_DEMO_MODE) {
   if (supabaseUrl && supabaseKey) {
     supabase = createClient(supabaseUrl, supabaseKey);
   } else {
-    console.error("缺少 Supabase 环境变量!");
+    supabaseInitError = '缺少 Supabase 环境变量，请检查 VITE_SUPABASE_URL 和 VITE_SUPABASE_ANON_KEY。';
+    console.error(supabaseInitError);
   }
 }
 
@@ -39,6 +41,44 @@ const getFaviconUrl = (url) => {
 };
 
 const DEFAULT_CATEGORIES = ['设计', '开发', '工具', '阅读', '灵感'];
+
+const normalizeTag = (value) => value.replace(/^#+\s*/, '').trim();
+
+const parseTags = (value) => {
+  if (Array.isArray(value)) {
+    return value.map((tag) => normalizeTag(String(tag))).filter(Boolean);
+  }
+
+  if (typeof value !== 'string') {
+    return [];
+  }
+
+  return value
+    .split(/[,\uFF0C]+/)
+    .map((tag) => normalizeTag(tag))
+    .filter(Boolean);
+};
+
+const uniqueTags = (tags) => Array.from(new Set(tags.map((tag) => normalizeTag(tag)).filter(Boolean)));
+
+const formatTag = (tag) => `#${tag}`;
+
+const serializeTags = (tags) => uniqueTags(tags).join(',');
+
+const hydrateLink = (link) => {
+  const tags = uniqueTags(parseTags(link.tags ?? link.category));
+  const normalizedTags = tags.length > 0 ? tags : [DEFAULT_CATEGORIES[0]];
+  return {
+    ...link,
+    tags: normalizedTags,
+    category: serializeTags(normalizedTags),
+  };
+};
+
+const collectCategoriesFromLinks = (items) => {
+  const allTags = items.flatMap((item) => item.tags || []);
+  return uniqueTags([...DEFAULT_CATEGORIES, ...allTags]);
+};
 
 // ==========================================
 // 🔐 安全组件 (Security)
@@ -122,7 +162,7 @@ const LinkCard = ({ link, onEdit, onDelete }) => {
   const favicon = getFaviconUrl(link.url);
 
   return (
-    <div className="group relative flex flex-col p-6 h-40 bg-white rounded-2xl border border-gray-100 transition-all duration-300 hover:-translate-y-1 hover:border-yellow-200 hover:shadow-[0_0_30px_rgba(250,204,21,0.25)]">
+    <div className="group relative flex flex-col p-6 min-h-[10rem] bg-white rounded-2xl border border-gray-100 transition-all duration-300 hover:-translate-y-1 hover:border-yellow-200 hover:shadow-[0_0_30px_rgba(250,204,21,0.25)]">
       <div className="absolute top-4 right-4 flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity duration-200 z-10">
         <button
           onClick={(e) => { e.preventDefault(); onEdit(link); }}
@@ -156,16 +196,19 @@ const LinkCard = ({ link, onEdit, onDelete }) => {
               </div>
             )}
           </div>
-          <ExternalLink className="w-4 h-4 text-gray-300 group-hover:opacity-0 transition-opacity" />
         </div>
         
         <div className="mt-auto">
           <h3 className="font-bold text-gray-800 truncate pr-4 text-lg group-hover:text-yellow-600 transition-colors">
             {link.title}
           </h3>
-          <span className="inline-block mt-1 text-xs font-medium text-gray-400 bg-gray-50 px-2 py-0.5 rounded-full">
-            {link.category}
-          </span>
+          <div className="mt-2 flex flex-wrap gap-1.5">
+            {link.tags.map((tag) => (
+              <span key={`${link.id}-${tag}`} className="inline-block text-xs font-medium text-gray-400 bg-gray-50 px-2 py-0.5 rounded-full">
+                {formatTag(tag)}
+              </span>
+            ))}
+          </div>
         </div>
       </a>
     </div>
@@ -173,8 +216,8 @@ const LinkCard = ({ link, onEdit, onDelete }) => {
 };
 
 // Unified Modal for Add and Edit
-const LinkModal = ({ isOpen, onClose, onSave, initialData, categories, onAddCategory }) => {
-  const [formData, setFormData] = useState({ title: '', url: '', category: '设计' });
+const LinkModal = ({ isOpen, onClose, onSave, initialData, categories, onAddCategory, onDeleteCategory }) => {
+  const [formData, setFormData] = useState({ title: '', url: '', tags: [DEFAULT_CATEGORIES[0]] });
   const [loading, setLoading] = useState(false);
   const [isAddingCategory, setIsAddingCategory] = useState(false);
   const [newCategoryName, setNewCategoryName] = useState('');
@@ -183,14 +226,37 @@ const LinkModal = ({ isOpen, onClose, onSave, initialData, categories, onAddCate
   useEffect(() => {
     if (isOpen) {
       if (initialData) {
-        setFormData(initialData);
+        setFormData({
+          title: initialData.title,
+          url: initialData.url,
+          tags: uniqueTags(parseTags(initialData.tags ?? initialData.category)),
+        });
       } else {
-        setFormData({ title: '', url: '', category: categories[0] || '设计' });
+        setFormData({ title: '', url: '', tags: [categories[0] || DEFAULT_CATEGORIES[0]] });
       }
       setIsAddingCategory(false);
       setNewCategoryName('');
     }
-  }, [isOpen, initialData, categories]);
+  }, [isOpen, initialData]);
+
+  useEffect(() => {
+    if (!isOpen) {
+      return;
+    }
+
+    setFormData((prev) => {
+      const nextTags = prev.tags.filter((tag) => categories.includes(tag));
+      const safeTags = nextTags.length > 0 ? nextTags : [categories[0] || DEFAULT_CATEGORIES[0]];
+      const unchanged =
+        safeTags.length === prev.tags.length && safeTags.every((tag, index) => tag === prev.tags[index]);
+
+      if (unchanged) {
+        return prev;
+      }
+
+      return { ...prev, tags: safeTags };
+    });
+  }, [categories, isOpen]);
 
   if (!isOpen) return null;
 
@@ -205,17 +271,40 @@ const LinkModal = ({ isOpen, onClose, onSave, initialData, categories, onAddCate
 
     if (USE_DEMO_MODE) await new Promise(r => setTimeout(r, 600));
 
-    await onSave({ ...formData, url: finalUrl });
-    setLoading(false);
-    onClose();
+    let saved = false;
+    try {
+      saved = await onSave({ ...formData, url: finalUrl });
+    } finally {
+      setLoading(false);
+    }
+
+    if (saved) {
+      onClose();
+    }
   };
 
   const handleCreateCategory = () => {
     if (newCategoryName.trim()) {
-      onAddCategory(newCategoryName.trim());
-      setFormData({ ...formData, category: newCategoryName.trim() });
+      const normalizedTag = normalizeTag(newCategoryName);
+      const createdTag = onAddCategory(normalizedTag);
+      if (createdTag) {
+        setFormData((prev) => ({ ...prev, tags: uniqueTags([...prev.tags, createdTag]) }));
+      }
       setIsAddingCategory(false);
+      setNewCategoryName('');
     }
+  };
+
+  const toggleTag = (tag) => {
+    setFormData((prev) => {
+      const exists = prev.tags.includes(tag);
+      if (exists) {
+        const nextTags = prev.tags.filter((item) => item !== tag);
+        return { ...prev, tags: nextTags.length > 0 ? nextTags : prev.tags };
+      }
+
+      return { ...prev, tags: [...prev.tags, tag] };
+    });
   };
 
   return (
@@ -259,24 +348,38 @@ const LinkModal = ({ isOpen, onClose, onSave, initialData, categories, onAddCate
             />
           </div>
 
-          {/* Category */}
+          {/* Tags */}
           <div>
-            <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-1.5 ml-1">分类</label>
+            <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-1.5 ml-1">标签</label>
             
             <div className="flex flex-wrap gap-2 mb-2">
               {categories.map(cat => (
-                <button
-                  key={cat}
-                  type="button"
-                  onClick={() => setFormData({...formData, category: cat})}
-                  className={`h-8 px-3 text-xs font-bold rounded-lg border transition-all ${
-                    formData.category === cat 
-                    ? 'bg-yellow-400 border-yellow-400 text-white shadow-md' 
-                    : 'bg-white border-gray-100 text-gray-500 hover:border-yellow-200'
-                  }`}
-                >
-                  {cat}
-                </button>
+                <div key={cat} className="flex items-center gap-1">
+                  <button
+                    type="button"
+                    onClick={() => toggleTag(cat)}
+                    className={`h-8 px-3 text-xs font-bold rounded-lg border transition-all ${
+                      formData.tags.includes(cat)
+                      ? 'bg-yellow-400 border-yellow-400 text-white shadow-md' 
+                      : 'bg-white border-gray-100 text-gray-500 hover:border-yellow-200'
+                    }`}
+                  >
+                    {formatTag(cat)}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => onDeleteCategory(cat)}
+                    disabled={categories.length <= 1}
+                    title={categories.length <= 1 ? '至少保留一个标签' : `删除标签：${formatTag(cat)}`}
+                    className={`h-8 w-8 rounded-lg border flex items-center justify-center transition-all ${
+                      categories.length <= 1
+                        ? 'border-gray-100 text-gray-300 bg-gray-50 cursor-not-allowed'
+                        : 'border-gray-100 text-gray-400 bg-white hover:border-red-300 hover:text-red-500'
+                    }`}
+                  >
+                    <X className="w-3.5 h-3.5" />
+                  </button>
+                </div>
               ))}
               
               {!isAddingCategory && (
@@ -295,7 +398,7 @@ const LinkModal = ({ isOpen, onClose, onSave, initialData, categories, onAddCate
                 <input
                   autoFocus
                   type="text"
-                  placeholder="输入新分类名称..."
+                  placeholder="输入新标签名称..."
                   className="flex-1 h-10 px-3 rounded-lg bg-white border border-yellow-200 focus:ring-2 focus:ring-yellow-100 outline-none text-sm"
                   value={newCategoryName}
                   onChange={e => setNewCategoryName(e.target.value)}
@@ -340,6 +443,7 @@ export default function App() {
   const [categories, setCategories] = useState(DEFAULT_CATEGORIES);
   const [filter, setFilter] = useState('全部');
   const [loading, setLoading] = useState(true);
+  const [fatalError, setFatalError] = useState(supabaseInitError);
 
   // States
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -359,6 +463,12 @@ export default function App() {
 
   const fetchLinks = async () => {
     setLoading(true);
+
+    if (!USE_DEMO_MODE && !supabase) {
+      setFatalError(supabaseInitError || 'Supabase 初始化失败，请检查环境变量配置。');
+      setLoading(false);
+      return;
+    }
     
     if (USE_DEMO_MODE) {
       setTimeout(() => {
@@ -369,9 +479,10 @@ export default function App() {
           { id: 4, title: 'Framer', url: 'https://framer.com', category: '设计' },
           { id: 5, title: 'Linear', url: 'https://linear.app', category: '工具' },
         ];
-        setLinks(demoLinks);
-        const existingCats = new Set([...DEFAULT_CATEGORIES, ...demoLinks.map(l => l.category)]);
-        setCategories(Array.from(existingCats));
+        const normalizedLinks = demoLinks.map((link) => hydrateLink(link));
+        setLinks(normalizedLinks);
+        setCategories(collectCategoriesFromLinks(normalizedLinks));
+        setFatalError('');
         setLoading(false);
       }, 800);
     } else if (supabase) {
@@ -383,9 +494,10 @@ export default function App() {
       if (error) {
         showSupabaseError('加载数据', error);
       } else if (data) {
-        setLinks(data);
-        const existingCats = new Set([...DEFAULT_CATEGORIES, ...data.map((l) => l.category)]);
-        setCategories(Array.from(existingCats));
+        const normalizedLinks = data.map((link) => hydrateLink(link));
+        setLinks(normalizedLinks);
+        setCategories(collectCategoriesFromLinks(normalizedLinks));
+        setFatalError('');
       }
       setLoading(false);
     }
@@ -396,26 +508,105 @@ export default function App() {
     setIsPinOpen(true);
   };
 
-  const handlePinSuccess = () => {
+  const handlePinSuccess = async () => {
     if (!pendingAction) return;
 
     const { type, payload } = pendingAction;
     
     if (type === 'DELETE') {
-      executeDelete(payload);
+      await executeDelete(payload);
     } else if (type === 'EDIT') {
       setEditingLink(payload);
       setIsModalOpen(true);
     } else if (type === 'ADD_CATEGORY') {
       executeAddCategory(payload);
+    } else if (type === 'DELETE_CATEGORY') {
+      await executeDeleteCategory(payload);
     }
     
     setPendingAction(null);
   };
 
   const executeAddCategory = (newCat) => {
-    if (!categories.includes(newCat)) {
-      setCategories([...categories, newCat]);
+    const normalizedTag = normalizeTag(newCat);
+    if (!normalizedTag) {
+      return null;
+    }
+
+    if (!categories.includes(normalizedTag)) {
+      setCategories([...categories, normalizedTag]);
+    }
+
+    return normalizedTag;
+  };
+
+  const executeDeleteCategory = async (categoryToDelete) => {
+    const normalizedTag = normalizeTag(categoryToDelete);
+
+    if (!categories.includes(normalizedTag)) {
+      return;
+    }
+
+    if (categories.length <= 1) {
+      alert('至少保留一个标签。');
+      return;
+    }
+
+    const fallbackTag = categories.find((cat) => cat !== normalizedTag) || DEFAULT_CATEGORIES[0];
+
+    const applyLocalTagDelete = () => {
+      setCategories((prev) => prev.filter((cat) => cat !== normalizedTag));
+      setLinks((prev) =>
+        prev.map((link) =>
+          link.tags.includes(normalizedTag)
+            ? (() => {
+                const nextTags = link.tags.filter((tag) => tag !== normalizedTag);
+                const safeTags = nextTags.length > 0 ? nextTags : [fallbackTag];
+                return { ...link, tags: safeTags, category: serializeTags(safeTags) };
+              })()
+            : link,
+        ),
+      );
+      setFilter((prev) => (prev === normalizedTag ? '全部' : prev));
+      setEditingLink((prev) =>
+        prev && parseTags(prev.tags ?? prev.category).includes(normalizedTag)
+          ? (() => {
+              const nextTags = parseTags(prev.tags ?? prev.category).filter((tag) => tag !== normalizedTag);
+              const safeTags = nextTags.length > 0 ? nextTags : [fallbackTag];
+              return { ...prev, tags: safeTags, category: serializeTags(safeTags) };
+            })()
+          : prev,
+      );
+    };
+
+    if (USE_DEMO_MODE) {
+      applyLocalTagDelete();
+      return;
+    }
+
+    if (supabase) {
+      const affectedLinks = links.filter((link) => link.tags.includes(normalizedTag));
+
+      const updateResults = await Promise.all(
+        affectedLinks.map((link) => {
+          const nextTags = link.tags.filter((tag) => tag !== normalizedTag);
+          const safeTags = nextTags.length > 0 ? nextTags : [fallbackTag];
+          return supabase
+            .from('links')
+            .update({ category: serializeTags(safeTags) })
+            .eq('id', link.id);
+        }),
+      );
+
+      const failed = updateResults.find((result) => result.error);
+      if (failed?.error) {
+        showSupabaseError('删除标签', failed.error);
+        return;
+      }
+
+      applyLocalTagDelete();
+    } else {
+      alert('Supabase 未初始化，无法删除标签。');
     }
   };
 
@@ -429,43 +620,69 @@ export default function App() {
         return;
       }
       setLinks((prev) => prev.filter((l) => l.id !== linkToDelete.id));
+    } else {
+      alert('Supabase 未初始化，无法删除链接。');
     }
   };
 
   const handleSaveLink = async (linkData) => {
+    if (!USE_DEMO_MODE && !supabase) {
+      alert('Supabase 未初始化，无法保存链接。');
+      return false;
+    }
+
+    const normalizedTags = uniqueTags(parseTags(linkData.tags ?? linkData.category));
+    const safeTags = normalizedTags.length > 0 ? normalizedTags : [categories[0] || DEFAULT_CATEGORIES[0]];
+    const normalizedLinkData = { ...linkData, tags: safeTags, category: serializeTags(safeTags) };
+    const dbPayload = {
+      title: normalizedLinkData.title,
+      url: normalizedLinkData.url,
+      category: normalizedLinkData.category,
+    };
+
     if (editingLink) {
       // Update
       if (USE_DEMO_MODE) {
-        setLinks((prev) => prev.map((l) => (l.id === editingLink.id ? { ...l, ...linkData } : l)));
+        setLinks((prev) => prev.map((l) => (l.id === editingLink.id ? { ...l, ...normalizedLinkData } : l)));
+        setCategories((prev) => uniqueTags([...prev, ...normalizedLinkData.tags]));
+        return true;
       } else if (supabase) {
-        const { error } = await supabase.from('links').update(linkData).eq('id', editingLink.id);
+        const { error } = await supabase.from('links').update(dbPayload).eq('id', editingLink.id);
         if (error) {
           showSupabaseError('更新链接', error);
-          return;
+          return false;
         }
         await fetchLinks();
+        return true;
       }
     } else {
       // Create
-      const newLink = { ...linkData, id: Date.now() };
+      const newLink = { ...normalizedLinkData, id: Date.now() };
       if (USE_DEMO_MODE) {
         setLinks((prev) => [newLink, ...prev]);
+        setCategories((prev) => uniqueTags([...prev, ...normalizedLinkData.tags]));
+        return true;
       } else if (supabase) {
-        const { data, error } = await supabase.from('links').insert([linkData]).select();
+        const { data, error } = await supabase.from('links').insert([dbPayload]).select();
         if (error) {
           showSupabaseError('新增链接', error);
-          return;
+          return false;
         }
         if (data?.[0]) {
-          setLinks((prev) => [data[0], ...prev]);
+          const hydrated = hydrateLink(data[0]);
+          setLinks((prev) => [hydrated, ...prev]);
+          setCategories((prev) => uniqueTags([...prev, ...hydrated.tags]));
         }
+        return true;
       }
     }
+
+    return false;
   };
 
   const filteredLinks = useMemo(() => {
     if (filter === '全部') return links;
-    return links.filter(l => l.category === filter);
+    return links.filter((l) => l.tags.includes(filter));
   }, [links, filter]);
 
   return (
@@ -479,7 +696,7 @@ export default function App() {
               className="bg-gray-900 hover:bg-black text-white px-5 py-2.5 rounded-full font-bold text-sm transition-all hover:shadow-[0_4px_20px_-5px_rgba(0,0,0,0.3)] hover:scale-105 active:scale-95 flex items-center gap-2"
             >
               <Plus className="w-4 h-4" />
-              <span className="hidden sm:inline">新增闪链</span>
+              <span className="hidden sm:inline">新增链接</span>
             </button>
           </div>
         </div>
@@ -487,12 +704,11 @@ export default function App() {
 
       <main className="max-w-7xl mx-auto px-6 pt-32 pb-20 flex-grow w-full">
         <div className="mb-12 text-center sm:text-left">
-          <h1 className="text-4xl sm:text-5xl font-extrabold text-gray-900 mb-4 tracking-tight">
-            精选优质网站 <span className="text-yellow-400 inline-block animate-pulse">.</span>
+          <h1 className="text-2xl sm:text-3xl font-extrabold text-gray-900 mb-4 tracking-tight">
+            闪链・一键保存优质链接
           </h1>
           <p className="text-gray-500 text-lg max-w-xl">
-            极简主义的必备网站合集。
-            无需登录，任何人均可读写。
+            极简导航・开放共享
           </p>
         </div>
 
@@ -505,7 +721,7 @@ export default function App() {
                 : 'bg-white text-gray-500 border border-gray-100 hover:border-yellow-200 hover:text-yellow-500'
             }`}
           >
-            全部
+            #全部
           </button>
           {categories.map(cat => (
             <button
@@ -517,12 +733,20 @@ export default function App() {
                   : 'bg-white text-gray-500 border border-gray-100 hover:border-yellow-200 hover:text-yellow-500'
               }`}
             >
-              {cat}
+              {formatTag(cat)}
             </button>
           ))}
         </div>
 
-        {loading ? (
+        {fatalError ? (
+          <div className="text-center py-20 border-2 border-dashed border-red-200 rounded-3xl bg-red-50/40">
+            <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4 text-red-500">
+              <X className="w-8 h-8" />
+            </div>
+            <h3 className="text-red-700 font-bold text-lg">配置错误</h3>
+            <p className="text-red-600 mt-1 text-sm max-w-xl mx-auto">{fatalError}</p>
+          </div>
+        ) : loading ? (
           <div className="flex justify-center items-center py-20">
             <Loader2 className="w-8 h-8 text-yellow-400 animate-spin" />
           </div>
@@ -545,7 +769,7 @@ export default function App() {
                   <Search className="w-8 h-8" />
                 </div>
                 <h3 className="text-gray-900 font-bold text-lg">未找到闪链</h3>
-                <p className="text-gray-400 mt-1">尝试切换分类或添加新的闪链。</p>
+                <p className="text-gray-400 mt-1">尝试切换标签或添加新的闪链。</p>
               </div>
             )}
           </>
@@ -560,6 +784,7 @@ export default function App() {
         initialData={editingLink}
         categories={categories}
         onAddCategory={(newCat) => requestAuth({ type: 'ADD_CATEGORY', payload: newCat })}
+        onDeleteCategory={(category) => requestAuth({ type: 'DELETE_CATEGORY', payload: category })}
       />
       
       {/* Security Pin Modal */}
