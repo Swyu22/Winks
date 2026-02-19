@@ -35,14 +35,19 @@ const getFaviconUrl = (url) => {
   try {
     const domain = new URL(url).hostname;
     return `https://www.google.com/s2/favicons?domain=${domain}&sz=64`;
-  } catch (e) {
+  } catch {
     return null;
   }
 };
 
-const DEFAULT_CATEGORIES = ['设计', '开发', '工具', '阅读', '灵感'];
+const DEFAULT_TAGS = ['设计', '开发', '工具', '阅读', '灵感'];
+const DEFAULT_CLASSIFICATIONS = ['未分类'];
+const LINK_META_PREFIX = '__WINKS_META__';
+const APP_VERSION = 'v1.1.1';
 
-const normalizeTag = (value) => value.replace(/^#+\s*/, '').trim();
+const normalizeName = (value) => String(value || '').replace(/^#+\s*/, '').trim();
+
+const normalizeTag = (value) => normalizeName(value);
 
 const parseTags = (value) => {
   if (Array.isArray(value)) {
@@ -60,24 +65,57 @@ const parseTags = (value) => {
 };
 
 const uniqueTags = (tags) => Array.from(new Set(tags.map((tag) => normalizeTag(tag)).filter(Boolean)));
+const uniqueClassifications = (items) => Array.from(new Set(items.map((item) => normalizeName(item)).filter(Boolean)));
 
 const formatTag = (tag) => `#${tag}`;
 
-const serializeTags = (tags) => uniqueTags(tags).join(',');
+const encodeLinkMeta = (classification, tags) =>
+  `${LINK_META_PREFIX}${JSON.stringify({
+    classification: normalizeName(classification) || DEFAULT_CLASSIFICATIONS[0],
+    tags: uniqueTags(tags),
+  })}`;
+
+const decodeLinkMeta = (rawValue) => {
+  if (typeof rawValue !== 'string' || !rawValue.startsWith(LINK_META_PREFIX)) {
+    return null;
+  }
+
+  try {
+    return JSON.parse(rawValue.slice(LINK_META_PREFIX.length));
+  } catch {
+    return null;
+  }
+};
 
 const hydrateLink = (link) => {
-  const tags = uniqueTags(parseTags(link.tags ?? link.category));
-  const normalizedTags = tags.length > 0 ? tags : [DEFAULT_CATEGORIES[0]];
+  const metadata = decodeLinkMeta(link.category);
+  const legacyTags = uniqueTags(parseTags(link.tags ?? link.category));
+  const tags =
+    uniqueTags(metadata?.tags || legacyTags).length > 0
+      ? uniqueTags(metadata?.tags || legacyTags)
+      : [DEFAULT_TAGS[0]];
+  const classification = normalizeName(metadata?.classification) || DEFAULT_CLASSIFICATIONS[0];
+
   return {
     ...link,
-    tags: normalizedTags,
-    category: serializeTags(normalizedTags),
+    tags,
+    category: classification,
   };
 };
 
-const collectCategoriesFromLinks = (items) => {
+const collectTagsFromLinks = (items) => {
   const allTags = items.flatMap((item) => item.tags || []);
-  return uniqueTags([...DEFAULT_CATEGORIES, ...allTags]);
+  const normalizedTags = uniqueTags(allTags);
+  return normalizedTags.length > 0 ? normalizedTags : DEFAULT_TAGS;
+};
+
+const collectClassificationsFromLinks = (items) => {
+  const normalizedClassifications = uniqueClassifications(items.map((item) => item.category));
+  if (normalizedClassifications.length === 0) {
+    return DEFAULT_CLASSIFICATIONS;
+  }
+
+  return uniqueClassifications([DEFAULT_CLASSIFICATIONS[0], ...normalizedClassifications]);
 };
 
 // ==========================================
@@ -216,26 +254,51 @@ const LinkCard = ({ link, onEdit, onDelete }) => {
 };
 
 // Unified Modal for Add and Edit
-const LinkModal = ({ isOpen, onClose, onSave, initialData, categories, onAddCategory, onDeleteCategory }) => {
-  const [formData, setFormData] = useState({ title: '', url: '', tags: [DEFAULT_CATEGORIES[0]] });
+const LinkModal = ({
+  isOpen,
+  onClose,
+  onSave,
+  initialData,
+  tags,
+  classifications,
+  onAddTag,
+  onDeleteTag,
+  onAddClassification,
+  onDeleteClassification,
+}) => {
+  const [formData, setFormData] = useState({
+    title: '',
+    url: '',
+    tags: [DEFAULT_TAGS[0]],
+    category: DEFAULT_CLASSIFICATIONS[0],
+  });
   const [loading, setLoading] = useState(false);
-  const [isAddingCategory, setIsAddingCategory] = useState(false);
-  const [newCategoryName, setNewCategoryName] = useState('');
+  const [isAddingTag, setIsAddingTag] = useState(false);
+  const [newTagName, setNewTagName] = useState('');
+  const [isAddingClassification, setIsAddingClassification] = useState(false);
+  const [newClassificationName, setNewClassificationName] = useState('');
 
-  // Reset or Fill form data
   useEffect(() => {
     if (isOpen) {
       if (initialData) {
         setFormData({
           title: initialData.title,
           url: initialData.url,
-          tags: uniqueTags(parseTags(initialData.tags ?? initialData.category)),
+          tags: uniqueTags(initialData.tags),
+          category: normalizeName(initialData.category) || classifications[0] || DEFAULT_CLASSIFICATIONS[0],
         });
       } else {
-        setFormData({ title: '', url: '', tags: [categories[0] || DEFAULT_CATEGORIES[0]] });
+        setFormData({
+          title: '',
+          url: '',
+          tags: [tags[0] || DEFAULT_TAGS[0]],
+          category: classifications[0] || DEFAULT_CLASSIFICATIONS[0],
+        });
       }
-      setIsAddingCategory(false);
-      setNewCategoryName('');
+      setIsAddingTag(false);
+      setNewTagName('');
+      setIsAddingClassification(false);
+      setNewClassificationName('');
     }
   }, [isOpen, initialData]);
 
@@ -245,31 +308,28 @@ const LinkModal = ({ isOpen, onClose, onSave, initialData, categories, onAddCate
     }
 
     setFormData((prev) => {
-      const nextTags = prev.tags.filter((tag) => categories.includes(tag));
-      const safeTags = nextTags.length > 0 ? nextTags : [categories[0] || DEFAULT_CATEGORIES[0]];
-      const unchanged =
-        safeTags.length === prev.tags.length && safeTags.every((tag, index) => tag === prev.tags[index]);
+      const nextTags = prev.tags.filter((tag) => tags.includes(tag));
+      const safeTags = nextTags.length > 0 ? nextTags : [tags[0] || DEFAULT_TAGS[0]];
+      const safeCategory = classifications.includes(prev.category)
+        ? prev.category
+        : classifications[0] || DEFAULT_CLASSIFICATIONS[0];
 
-      if (unchanged) {
-        return prev;
-      }
-
-      return { ...prev, tags: safeTags };
+      return { ...prev, tags: safeTags, category: safeCategory };
     });
-  }, [categories, isOpen]);
+  }, [tags, classifications, isOpen]);
 
   if (!isOpen) return null;
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     setLoading(true);
-    
+
     let finalUrl = formData.url;
     if (!/^https?:\/\//i.test(finalUrl)) {
-      finalUrl = 'https://' + finalUrl;
+      finalUrl = `https://${finalUrl}`;
     }
 
-    if (USE_DEMO_MODE) await new Promise(r => setTimeout(r, 600));
+    if (USE_DEMO_MODE) await new Promise((r) => setTimeout(r, 600));
 
     let saved = false;
     try {
@@ -283,18 +343,6 @@ const LinkModal = ({ isOpen, onClose, onSave, initialData, categories, onAddCate
     }
   };
 
-  const handleCreateCategory = () => {
-    if (newCategoryName.trim()) {
-      const normalizedTag = normalizeTag(newCategoryName);
-      const createdTag = onAddCategory(normalizedTag);
-      if (createdTag) {
-        setFormData((prev) => ({ ...prev, tags: uniqueTags([...prev.tags, createdTag]) }));
-      }
-      setIsAddingCategory(false);
-      setNewCategoryName('');
-    }
-  };
-
   const toggleTag = (tag) => {
     setFormData((prev) => {
       const exists = prev.tags.includes(tag);
@@ -302,9 +350,30 @@ const LinkModal = ({ isOpen, onClose, onSave, initialData, categories, onAddCate
         const nextTags = prev.tags.filter((item) => item !== tag);
         return { ...prev, tags: nextTags.length > 0 ? nextTags : prev.tags };
       }
-
       return { ...prev, tags: [...prev.tags, tag] };
     });
+  };
+
+  const handleCreateTag = () => {
+    const normalizedTag = normalizeTag(newTagName);
+    if (!normalizedTag) return;
+    const createdTag = onAddTag(normalizedTag);
+    if (createdTag) {
+      setFormData((prev) => ({ ...prev, tags: uniqueTags([...prev.tags, createdTag]) }));
+    }
+    setIsAddingTag(false);
+    setNewTagName('');
+  };
+
+  const handleCreateClassification = () => {
+    const normalizedClassification = normalizeName(newClassificationName);
+    if (!normalizedClassification) return;
+    const createdClassification = onAddClassification(normalizedClassification);
+    if (createdClassification) {
+      setFormData((prev) => ({ ...prev, category: createdClassification }));
+    }
+    setIsAddingClassification(false);
+    setNewClassificationName('');
   };
 
   return (
@@ -315,14 +384,13 @@ const LinkModal = ({ isOpen, onClose, onSave, initialData, categories, onAddCate
         </button>
 
         <h2 className="text-2xl font-bold text-gray-800 mb-1">
-          {initialData ? '编辑闪链' : '新增闪链'}
+          {initialData ? '编辑链接' : '新增链接'}
         </h2>
         <p className="text-gray-400 text-sm mb-6">
           {initialData ? '修改现有的网站信息。' : '添加一个新的公共网站到收藏集。'}
         </p>
 
         <form onSubmit={handleSubmit} className="space-y-4">
-          {/* Title */}
           <div>
             <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-1.5 ml-1">标题</label>
             <input
@@ -331,11 +399,10 @@ const LinkModal = ({ isOpen, onClose, onSave, initialData, categories, onAddCate
               placeholder="例如: Stripe"
               className="w-full h-12 px-4 rounded-xl bg-gray-50 border-transparent focus:bg-white focus:border-yellow-400 focus:ring-4 focus:ring-yellow-100 transition-all outline-none font-medium text-gray-800 placeholder-gray-300"
               value={formData.title}
-              onChange={e => setFormData({...formData, title: e.target.value})}
+              onChange={(e) => setFormData({ ...formData, title: e.target.value })}
             />
           </div>
 
-          {/* URL */}
           <div>
             <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-1.5 ml-1">链接地址</label>
             <input
@@ -344,35 +411,34 @@ const LinkModal = ({ isOpen, onClose, onSave, initialData, categories, onAddCate
               placeholder="stripe.com"
               className="w-full h-12 px-4 rounded-xl bg-gray-50 border-transparent focus:bg-white focus:border-yellow-400 focus:ring-4 focus:ring-yellow-100 transition-all outline-none font-medium text-gray-800 placeholder-gray-300"
               value={formData.url}
-              onChange={e => setFormData({...formData, url: e.target.value})}
+              onChange={(e) => setFormData({ ...formData, url: e.target.value })}
             />
           </div>
 
-          {/* Tags */}
           <div>
-            <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-1.5 ml-1">标签</label>
-            
+            <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-1.5 ml-1">分类</label>
+
             <div className="flex flex-wrap gap-2 mb-2">
-              {categories.map(cat => (
-                <div key={cat} className="flex items-center gap-1">
+              {classifications.map((classification) => (
+                <div key={classification} className="flex items-center gap-1">
                   <button
                     type="button"
-                    onClick={() => toggleTag(cat)}
+                    onClick={() => setFormData((prev) => ({ ...prev, category: classification }))}
                     className={`h-8 px-3 text-xs font-bold rounded-lg border transition-all ${
-                      formData.tags.includes(cat)
-                      ? 'bg-yellow-400 border-yellow-400 text-white shadow-md' 
-                      : 'bg-white border-gray-100 text-gray-500 hover:border-yellow-200'
+                      formData.category === classification
+                        ? 'bg-yellow-400 border-yellow-400 text-white shadow-md'
+                        : 'bg-white border-gray-100 text-gray-500 hover:border-yellow-200'
                     }`}
                   >
-                    {formatTag(cat)}
+                    {classification}
                   </button>
                   <button
                     type="button"
-                    onClick={() => onDeleteCategory(cat)}
-                    disabled={categories.length <= 1}
-                    title={categories.length <= 1 ? '至少保留一个标签' : `删除标签：${formatTag(cat)}`}
+                    onClick={() => onDeleteClassification(classification)}
+                    disabled={classifications.length <= 1}
+                    title={classifications.length <= 1 ? '至少保留一个分类' : `删除分类：${classification}`}
                     className={`h-8 w-8 rounded-lg border flex items-center justify-center transition-all ${
-                      categories.length <= 1
+                      classifications.length <= 1
                         ? 'border-gray-100 text-gray-300 bg-gray-50 cursor-not-allowed'
                         : 'border-gray-100 text-gray-400 bg-white hover:border-red-300 hover:text-red-500'
                     }`}
@@ -381,38 +447,110 @@ const LinkModal = ({ isOpen, onClose, onSave, initialData, categories, onAddCate
                   </button>
                 </div>
               ))}
-              
-              {!isAddingCategory && (
+
+              {!isAddingClassification && (
                 <button
                   type="button"
-                  onClick={() => setIsAddingCategory(true)}
+                  onClick={() => setIsAddingClassification(true)}
                   className="h-8 px-3 text-xs font-bold rounded-lg border border-dashed border-gray-300 text-gray-400 hover:border-yellow-400 hover:text-yellow-600 flex items-center gap-1 bg-gray-50 hover:bg-white transition-all"
                 >
-                  <Plus className="w-3 h-3" /> 新增
+                  <Plus className="w-3 h-3" /> 新增分类
                 </button>
               )}
             </div>
 
-            {isAddingCategory && (
-              <div className="flex gap-2 animate-in fade-in slide-in-from-top-2">
+            {isAddingClassification && (
+              <div className="flex gap-2 animate-in fade-in slide-in-from-top-2 mb-3">
                 <input
                   autoFocus
                   type="text"
-                  placeholder="输入新标签名称..."
+                  placeholder="输入新分类名称..."
                   className="flex-1 h-10 px-3 rounded-lg bg-white border border-yellow-200 focus:ring-2 focus:ring-yellow-100 outline-none text-sm"
-                  value={newCategoryName}
-                  onChange={e => setNewCategoryName(e.target.value)}
+                  value={newClassificationName}
+                  onChange={(e) => setNewClassificationName(e.target.value)}
                 />
                 <button
                   type="button"
-                  onClick={handleCreateCategory}
+                  onClick={handleCreateClassification}
                   className="h-10 px-4 bg-yellow-400 text-white rounded-lg text-sm font-bold hover:shadow-lg"
                 >
                   确认
                 </button>
                 <button
                   type="button"
-                  onClick={() => setIsAddingCategory(false)}
+                  onClick={() => setIsAddingClassification(false)}
+                  className="h-10 w-10 flex items-center justify-center bg-gray-100 text-gray-500 rounded-lg hover:bg-gray-200"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+            )}
+          </div>
+
+          <div>
+            <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-1.5 ml-1">标签</label>
+
+            <div className="flex flex-wrap gap-2 mb-2">
+              {tags.map((tag) => (
+                <div key={tag} className="flex items-center gap-1">
+                  <button
+                    type="button"
+                    onClick={() => toggleTag(tag)}
+                    className={`h-8 px-3 text-xs font-bold rounded-lg border transition-all ${
+                      formData.tags.includes(tag)
+                        ? 'bg-yellow-400 border-yellow-400 text-white shadow-md'
+                        : 'bg-white border-gray-100 text-gray-500 hover:border-yellow-200'
+                    }`}
+                  >
+                    {formatTag(tag)}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => onDeleteTag(tag)}
+                    disabled={tags.length <= 1}
+                    title={tags.length <= 1 ? '至少保留一个标签' : `删除标签：${formatTag(tag)}`}
+                    className={`h-8 w-8 rounded-lg border flex items-center justify-center transition-all ${
+                      tags.length <= 1
+                        ? 'border-gray-100 text-gray-300 bg-gray-50 cursor-not-allowed'
+                        : 'border-gray-100 text-gray-400 bg-white hover:border-red-300 hover:text-red-500'
+                    }`}
+                  >
+                    <X className="w-3.5 h-3.5" />
+                  </button>
+                </div>
+              ))}
+
+              {!isAddingTag && (
+                <button
+                  type="button"
+                  onClick={() => setIsAddingTag(true)}
+                  className="h-8 px-3 text-xs font-bold rounded-lg border border-dashed border-gray-300 text-gray-400 hover:border-yellow-400 hover:text-yellow-600 flex items-center gap-1 bg-gray-50 hover:bg-white transition-all"
+                >
+                  <Plus className="w-3 h-3" /> 新增标签
+                </button>
+              )}
+            </div>
+
+            {isAddingTag && (
+              <div className="flex gap-2 animate-in fade-in slide-in-from-top-2">
+                <input
+                  autoFocus
+                  type="text"
+                  placeholder="输入新标签名称..."
+                  className="flex-1 h-10 px-3 rounded-lg bg-white border border-yellow-200 focus:ring-2 focus:ring-yellow-100 outline-none text-sm"
+                  value={newTagName}
+                  onChange={(e) => setNewTagName(e.target.value)}
+                />
+                <button
+                  type="button"
+                  onClick={handleCreateTag}
+                  className="h-10 px-4 bg-yellow-400 text-white rounded-lg text-sm font-bold hover:shadow-lg"
+                >
+                  确认
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setIsAddingTag(false)}
                   className="h-10 w-10 flex items-center justify-center bg-gray-100 text-gray-500 rounded-lg hover:bg-gray-200"
                 >
                   <X className="w-4 h-4" />
@@ -426,11 +564,103 @@ const LinkModal = ({ isOpen, onClose, onSave, initialData, categories, onAddCate
             disabled={loading}
             className="w-full h-12 mt-4 bg-gray-900 text-white font-bold rounded-xl hover:bg-black hover:shadow-lg hover:shadow-yellow-400/20 active:scale-[0.98] transition-all flex items-center justify-center gap-2"
           >
-            {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : (initialData ? '保存修改' : '保存闪链')}
+            {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : (initialData ? '保存修改' : '保存链接')}
           </button>
         </form>
       </div>
     </div>
+  );
+};
+
+const CategorySidebar = ({
+  classifications,
+  activeClassification,
+  onSelectClassification,
+  onDeleteClassification,
+}) => {
+  return (
+    <>
+      <aside className="hidden lg:block fixed left-0 top-20 bottom-0 w-64 border-r border-gray-100 bg-white z-30">
+        <div className="h-full overflow-y-auto px-4 py-6 flex flex-col">
+          <h3 className="text-sm font-bold text-gray-700 mb-4 px-1">分类</h3>
+
+          <div className="space-y-2 flex-1">
+            <button
+              onClick={() => onSelectClassification('全部')}
+              className={`w-full h-10 rounded-lg text-left px-3 text-sm font-bold transition-all ${
+                activeClassification === '全部'
+                  ? 'bg-yellow-400 text-white shadow-[0_4px_12px_rgba(250,204,21,0.35)]'
+                  : 'bg-gray-50 text-gray-600 hover:bg-gray-100'
+              }`}
+            >
+              全部
+            </button>
+
+            {classifications.map((classification) => (
+              <div key={classification} className="group relative">
+                <button
+                  onClick={() => onSelectClassification(classification)}
+                  className={`w-full h-10 rounded-lg text-left px-3 pr-11 text-sm font-bold transition-all ${
+                    activeClassification === classification
+                      ? 'bg-yellow-400 text-white shadow-[0_4px_12px_rgba(250,204,21,0.35)]'
+                      : 'bg-gray-50 text-gray-600 hover:bg-gray-100'
+                  }`}
+                >
+                  <span className="truncate">{classification}</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => onDeleteClassification(classification)}
+                  disabled={classifications.length <= 1}
+                  title={classifications.length <= 1 ? '至少保留一个分类' : `删除分类：${classification}`}
+                  className={`absolute right-0 top-0 h-10 w-10 rounded-lg border flex items-center justify-center transition-opacity duration-200 opacity-0 pointer-events-none delay-0 group-hover:opacity-100 group-hover:pointer-events-auto group-hover:delay-[3000ms] ${
+                    classifications.length <= 1
+                      ? 'border-gray-100 text-gray-300 bg-gray-50 cursor-not-allowed'
+                      : 'border-gray-100 text-gray-400 bg-white hover:border-red-300 hover:text-red-500'
+                  }`}
+                >
+                  <X className="w-3.5 h-3.5" />
+                </button>
+              </div>
+            ))}
+          </div>
+
+          <div className="pt-4 mt-4 border-t border-gray-100 text-center">
+            <p className="text-[11px] tracking-wide text-gray-400">版本 {APP_VERSION}</p>
+          </div>
+        </div>
+      </aside>
+
+      <div className="lg:hidden mb-6">
+        <p className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">分类</p>
+        <div className="flex items-center gap-2 overflow-x-auto pb-2">
+          <button
+            onClick={() => onSelectClassification('全部')}
+            className={`px-3 py-1.5 rounded-full text-xs font-bold whitespace-nowrap transition-all ${
+              activeClassification === '全部'
+                ? 'bg-yellow-400 text-white'
+                : 'bg-white text-gray-600 border border-gray-100'
+            }`}
+          >
+            全部
+          </button>
+          {classifications.map((classification) => (
+            <button
+              key={classification}
+              onClick={() => onSelectClassification(classification)}
+              className={`px-3 py-1.5 rounded-full text-xs font-bold whitespace-nowrap transition-all ${
+                activeClassification === classification
+                  ? 'bg-yellow-400 text-white'
+                  : 'bg-white text-gray-600 border border-gray-100'
+              }`}
+            >
+              {classification}
+            </button>
+          ))}
+        </div>
+      </div>
+    </>
   );
 };
 
@@ -440,8 +670,10 @@ const LinkModal = ({ isOpen, onClose, onSave, initialData, categories, onAddCate
 
 export default function App() {
   const [links, setLinks] = useState([]);
-  const [categories, setCategories] = useState(DEFAULT_CATEGORIES);
-  const [filter, setFilter] = useState('全部');
+  const [tags, setTags] = useState(DEFAULT_TAGS);
+  const [classifications, setClassifications] = useState(DEFAULT_CLASSIFICATIONS);
+  const [tagFilter, setTagFilter] = useState('全部');
+  const [classificationFilter, setClassificationFilter] = useState('全部');
   const [loading, setLoading] = useState(true);
   const [fatalError, setFatalError] = useState(supabaseInitError);
 
@@ -473,15 +705,41 @@ export default function App() {
     if (USE_DEMO_MODE) {
       setTimeout(() => {
         const demoLinks = [
-          { id: 1, title: 'Supabase', url: 'https://supabase.com', category: '工具' },
-          { id: 2, title: 'Tailwind CSS', url: 'https://tailwindcss.com', category: '开发' },
-          { id: 3, title: 'Dribbble', url: 'https://dribbble.com', category: '灵感' },
-          { id: 4, title: 'Framer', url: 'https://framer.com', category: '设计' },
-          { id: 5, title: 'Linear', url: 'https://linear.app', category: '工具' },
+          {
+            id: 1,
+            title: 'Supabase',
+            url: 'https://supabase.com',
+            category: encodeLinkMeta('开发', ['开发', '工具']),
+          },
+          {
+            id: 2,
+            title: 'Tailwind CSS',
+            url: 'https://tailwindcss.com',
+            category: encodeLinkMeta('开发', ['开发', '设计']),
+          },
+          {
+            id: 3,
+            title: 'Dribbble',
+            url: 'https://dribbble.com',
+            category: encodeLinkMeta('设计', ['设计', '灵感']),
+          },
+          {
+            id: 4,
+            title: 'Framer',
+            url: 'https://framer.com',
+            category: encodeLinkMeta('设计', ['设计', '工具']),
+          },
+          {
+            id: 5,
+            title: 'Linear',
+            url: 'https://linear.app',
+            category: encodeLinkMeta('工具', ['工具']),
+          },
         ];
         const normalizedLinks = demoLinks.map((link) => hydrateLink(link));
         setLinks(normalizedLinks);
-        setCategories(collectCategoriesFromLinks(normalizedLinks));
+        setTags(collectTagsFromLinks(normalizedLinks));
+        setClassifications(collectClassificationsFromLinks(normalizedLinks));
         setFatalError('');
         setLoading(false);
       }, 800);
@@ -496,7 +754,8 @@ export default function App() {
       } else if (data) {
         const normalizedLinks = data.map((link) => hydrateLink(link));
         setLinks(normalizedLinks);
-        setCategories(collectCategoriesFromLinks(normalizedLinks));
+        setTags(collectTagsFromLinks(normalizedLinks));
+        setClassifications(collectClassificationsFromLinks(normalizedLinks));
         setFatalError('');
       }
       setLoading(false);
@@ -513,67 +772,65 @@ export default function App() {
 
     const { type, payload } = pendingAction;
     
-    if (type === 'DELETE') {
-      await executeDelete(payload);
-    } else if (type === 'EDIT') {
+    if (type === 'DELETE_LINK') {
+      await executeDeleteLink(payload);
+    } else if (type === 'EDIT_LINK') {
       setEditingLink(payload);
       setIsModalOpen(true);
-    } else if (type === 'ADD_CATEGORY') {
-      executeAddCategory(payload);
-    } else if (type === 'DELETE_CATEGORY') {
-      await executeDeleteCategory(payload);
+    } else if (type === 'DELETE_CLASSIFICATION') {
+      await executeDeleteClassification(payload);
     }
     
     setPendingAction(null);
   };
 
-  const executeAddCategory = (newCat) => {
-    const normalizedTag = normalizeTag(newCat);
+  const executeAddTag = (newTag) => {
+    const normalizedTag = normalizeTag(newTag);
     if (!normalizedTag) {
       return null;
     }
 
-    if (!categories.includes(normalizedTag)) {
-      setCategories([...categories, normalizedTag]);
+    if (!tags.includes(normalizedTag)) {
+      setTags((prev) => [...prev, normalizedTag]);
     }
 
     return normalizedTag;
   };
 
-  const executeDeleteCategory = async (categoryToDelete) => {
-    const normalizedTag = normalizeTag(categoryToDelete);
+  const executeDeleteTag = async (tagToDelete) => {
+    const normalizedTag = normalizeTag(tagToDelete);
 
-    if (!categories.includes(normalizedTag)) {
+    if (!tags.includes(normalizedTag)) {
       return;
     }
 
-    if (categories.length <= 1) {
+    if (tags.length <= 1) {
       alert('至少保留一个标签。');
       return;
     }
 
-    const fallbackTag = categories.find((cat) => cat !== normalizedTag) || DEFAULT_CATEGORIES[0];
+    const fallbackTag = tags.find((tag) => tag !== normalizedTag) || DEFAULT_TAGS[0];
 
     const applyLocalTagDelete = () => {
-      setCategories((prev) => prev.filter((cat) => cat !== normalizedTag));
+      setTags((prev) => prev.filter((tag) => tag !== normalizedTag));
       setLinks((prev) =>
         prev.map((link) =>
           link.tags.includes(normalizedTag)
             ? (() => {
                 const nextTags = link.tags.filter((tag) => tag !== normalizedTag);
                 const safeTags = nextTags.length > 0 ? nextTags : [fallbackTag];
-                return { ...link, tags: safeTags, category: serializeTags(safeTags) };
+                return { ...link, tags: safeTags };
               })()
             : link,
         ),
       );
-      setFilter((prev) => (prev === normalizedTag ? '全部' : prev));
+      setTagFilter((prev) => (prev === normalizedTag ? '全部' : prev));
       setEditingLink((prev) =>
-        prev && parseTags(prev.tags ?? prev.category).includes(normalizedTag)
+        prev && prev.tags.includes(normalizedTag)
           ? (() => {
-              const nextTags = parseTags(prev.tags ?? prev.category).filter((tag) => tag !== normalizedTag);
+              const nextTags = prev.tags.filter((tag) => tag !== normalizedTag);
               const safeTags = nextTags.length > 0 ? nextTags : [fallbackTag];
-              return { ...prev, tags: safeTags, category: serializeTags(safeTags) };
+              return { ...prev, tags: safeTags };
             })()
           : prev,
       );
@@ -593,7 +850,7 @@ export default function App() {
           const safeTags = nextTags.length > 0 ? nextTags : [fallbackTag];
           return supabase
             .from('links')
-            .update({ category: serializeTags(safeTags) })
+            .update({ category: encodeLinkMeta(link.category, safeTags) })
             .eq('id', link.id);
         }),
       );
@@ -610,7 +867,83 @@ export default function App() {
     }
   };
 
-  const executeDelete = async (linkToDelete) => {
+  const executeAddClassification = (newClassification) => {
+    const normalizedClassification = normalizeName(newClassification);
+    if (!normalizedClassification) {
+      return null;
+    }
+
+    if (!classifications.includes(normalizedClassification)) {
+      setClassifications((prev) => [...prev, normalizedClassification]);
+    }
+
+    return normalizedClassification;
+  };
+
+  const executeDeleteClassification = async (classificationToDelete) => {
+    const normalizedClassification = normalizeName(classificationToDelete);
+
+    if (!classifications.includes(normalizedClassification)) {
+      return;
+    }
+
+    if (classifications.length <= 1) {
+      alert('至少保留一个分类。');
+      return;
+    }
+
+    const fallbackClassification =
+      classifications.find((classification) => classification !== normalizedClassification) ||
+      DEFAULT_CLASSIFICATIONS[0];
+
+    const applyLocalClassificationDelete = () => {
+      setClassifications((prev) =>
+        prev.filter((classification) => classification !== normalizedClassification),
+      );
+      setLinks((prev) =>
+        prev.map((link) =>
+          link.category === normalizedClassification
+            ? { ...link, category: fallbackClassification }
+            : link,
+        ),
+      );
+      setClassificationFilter((prev) => (prev === normalizedClassification ? '全部' : prev));
+      setEditingLink((prev) =>
+        prev && prev.category === normalizedClassification
+          ? { ...prev, category: fallbackClassification }
+          : prev,
+      );
+    };
+
+    if (USE_DEMO_MODE) {
+      applyLocalClassificationDelete();
+      return;
+    }
+
+    if (supabase) {
+      const affectedLinks = links.filter((link) => link.category === normalizedClassification);
+      const updateResults = await Promise.all(
+        affectedLinks.map((link) =>
+          supabase
+            .from('links')
+            .update({ category: encodeLinkMeta(fallbackClassification, link.tags) })
+            .eq('id', link.id),
+        ),
+      );
+
+      const failed = updateResults.find((result) => result.error);
+      if (failed?.error) {
+        showSupabaseError('删除分类', failed.error);
+        return;
+      }
+
+      applyLocalClassificationDelete();
+    } else {
+      alert('Supabase 未初始化，无法删除分类。');
+    }
+  };
+
+  const executeDeleteLink = async (linkToDelete) => {
     if (USE_DEMO_MODE) {
       setLinks((prev) => prev.filter((l) => l.id !== linkToDelete.id));
     } else if (supabase) {
@@ -631,28 +964,44 @@ export default function App() {
       return false;
     }
 
-    const normalizedTags = uniqueTags(parseTags(linkData.tags ?? linkData.category));
-    const safeTags = normalizedTags.length > 0 ? normalizedTags : [categories[0] || DEFAULT_CATEGORIES[0]];
-    const normalizedLinkData = { ...linkData, tags: safeTags, category: serializeTags(safeTags) };
+    const normalizedTags = uniqueTags(parseTags(linkData.tags));
+    const safeTags = normalizedTags.length > 0 ? normalizedTags : [tags[0] || DEFAULT_TAGS[0]];
+    const safeClassification =
+      normalizeName(linkData.category) || classifications[0] || DEFAULT_CLASSIFICATIONS[0];
+    const normalizedLinkData = {
+      ...linkData,
+      tags: safeTags,
+      category: safeClassification,
+    };
     const dbPayload = {
       title: normalizedLinkData.title,
       url: normalizedLinkData.url,
-      category: normalizedLinkData.category,
+      category: encodeLinkMeta(safeClassification, safeTags),
     };
 
     if (editingLink) {
       // Update
       if (USE_DEMO_MODE) {
         setLinks((prev) => prev.map((l) => (l.id === editingLink.id ? { ...l, ...normalizedLinkData } : l)));
-        setCategories((prev) => uniqueTags([...prev, ...normalizedLinkData.tags]));
+        setTags((prev) => uniqueTags([...prev, ...normalizedLinkData.tags]));
+        setClassifications((prev) => uniqueClassifications([...prev, normalizedLinkData.category]));
         return true;
       } else if (supabase) {
-        const { error } = await supabase.from('links').update(dbPayload).eq('id', editingLink.id);
+        const { data, error } = await supabase
+          .from('links')
+          .update(dbPayload)
+          .eq('id', editingLink.id)
+          .select();
         if (error) {
           showSupabaseError('更新链接', error);
           return false;
         }
-        await fetchLinks();
+        if (data?.[0]) {
+          const hydrated = hydrateLink(data[0]);
+          setLinks((prev) => prev.map((link) => (link.id === hydrated.id ? hydrated : link)));
+          setTags((prev) => uniqueTags([...prev, ...hydrated.tags]));
+          setClassifications((prev) => uniqueClassifications([...prev, hydrated.category]));
+        }
         return true;
       }
     } else {
@@ -660,7 +1009,8 @@ export default function App() {
       const newLink = { ...normalizedLinkData, id: Date.now() };
       if (USE_DEMO_MODE) {
         setLinks((prev) => [newLink, ...prev]);
-        setCategories((prev) => uniqueTags([...prev, ...normalizedLinkData.tags]));
+        setTags((prev) => uniqueTags([...prev, ...normalizedLinkData.tags]));
+        setClassifications((prev) => uniqueClassifications([...prev, normalizedLinkData.category]));
         return true;
       } else if (supabase) {
         const { data, error } = await supabase.from('links').insert([dbPayload]).select();
@@ -671,7 +1021,8 @@ export default function App() {
         if (data?.[0]) {
           const hydrated = hydrateLink(data[0]);
           setLinks((prev) => [hydrated, ...prev]);
-          setCategories((prev) => uniqueTags([...prev, ...hydrated.tags]));
+          setTags((prev) => uniqueTags([...prev, ...hydrated.tags]));
+          setClassifications((prev) => uniqueClassifications([...prev, hydrated.category]));
         }
         return true;
       }
@@ -681,15 +1032,21 @@ export default function App() {
   };
 
   const filteredLinks = useMemo(() => {
-    if (filter === '全部') return links;
-    return links.filter((l) => l.tags.includes(filter));
-  }, [links, filter]);
+    return links.filter((link) => {
+      const matchesClassification =
+        classificationFilter === '全部' || link.category === classificationFilter;
+      const matchesTag = tagFilter === '全部' || link.tags.includes(tagFilter);
+      return matchesClassification && matchesTag;
+    });
+  }, [links, classificationFilter, tagFilter]);
 
   return (
     <div className="min-h-screen bg-gray-50 text-gray-900 font-sans selection:bg-yellow-200 flex flex-col">
       <nav className="fixed top-0 left-0 right-0 z-40 bg-white/80 backdrop-blur-md border-b border-gray-100">
-        <div className="max-w-7xl mx-auto px-6 h-20 flex items-center justify-between">
-          <Logo />
+        <div className="h-20 pl-4 pr-4 sm:pl-6 sm:pr-6 lg:pl-6 lg:pr-8 relative flex items-center justify-between lg:justify-end">
+          <div className="lg:absolute lg:left-0 lg:top-1/2 lg:-translate-y-1/2 lg:w-64 lg:flex lg:items-center lg:justify-center">
+            <Logo />
+          </div>
           <div className="flex items-center gap-4">
             <button
               onClick={() => { setEditingLink(null); setIsModalOpen(true); }}
@@ -702,78 +1059,89 @@ export default function App() {
         </div>
       </nav>
 
-      <main className="max-w-7xl mx-auto px-6 pt-32 pb-20 flex-grow w-full">
-        <div className="mb-12 text-center sm:text-left">
-          <h1 className="text-2xl sm:text-3xl font-extrabold text-gray-900 mb-4 tracking-tight">
-            闪链・一键保存优质链接
-          </h1>
-          <p className="text-gray-500 text-lg max-w-xl">
-            极简导航・开放共享
-          </p>
-        </div>
+      <CategorySidebar
+        classifications={classifications}
+        activeClassification={classificationFilter}
+        onSelectClassification={setClassificationFilter}
+        onDeleteClassification={(classification) =>
+          requestAuth({ type: 'DELETE_CLASSIFICATION', payload: classification })
+        }
+      />
 
-        <div className="flex flex-wrap items-center gap-2 mb-10 overflow-x-auto pb-4 scrollbar-hide">
-          <button
-            onClick={() => setFilter('全部')}
-            className={`px-4 py-2 rounded-full text-sm font-bold transition-all whitespace-nowrap ${
-              filter === '全部'
-                ? 'bg-yellow-400 text-white shadow-[0_4px_15px_rgba(250,204,21,0.4)]'
-                : 'bg-white text-gray-500 border border-gray-100 hover:border-yellow-200 hover:text-yellow-500'
-            }`}
-          >
-            #全部
-          </button>
-          {categories.map(cat => (
+      <main className="w-full px-6 pt-28 pb-20 flex-grow lg:pl-[18.5rem]">
+        <div className="max-w-7xl mx-auto">
+          <div className="mb-10 text-center sm:text-left">
+            <h1 className="text-xl sm:text-2xl font-extrabold text-gray-900 mb-3 tracking-tight">
+              闪链・一键保存优质链接
+            </h1>
+            <p className="text-gray-500 text-sm sm:text-base max-w-xl">
+              极简导航・开放共享
+            </p>
+          </div>
+
+          <div className="flex flex-wrap items-center gap-2 mb-10 overflow-x-auto pb-3">
             <button
-              key={cat}
-              onClick={() => setFilter(cat)}
+              onClick={() => setTagFilter('全部')}
               className={`px-4 py-2 rounded-full text-sm font-bold transition-all whitespace-nowrap ${
-                filter === cat
+                tagFilter === '全部'
                   ? 'bg-yellow-400 text-white shadow-[0_4px_15px_rgba(250,204,21,0.4)]'
                   : 'bg-white text-gray-500 border border-gray-100 hover:border-yellow-200 hover:text-yellow-500'
               }`}
             >
-              {formatTag(cat)}
+              #全部
             </button>
-          ))}
-        </div>
+            {tags.map((tag) => (
+              <button
+                key={tag}
+                onClick={() => setTagFilter(tag)}
+                className={`px-4 py-2 rounded-full text-sm font-bold transition-all whitespace-nowrap ${
+                  tagFilter === tag
+                    ? 'bg-yellow-400 text-white shadow-[0_4px_15px_rgba(250,204,21,0.4)]'
+                    : 'bg-white text-gray-500 border border-gray-100 hover:border-yellow-200 hover:text-yellow-500'
+                }`}
+              >
+                {formatTag(tag)}
+              </button>
+            ))}
+          </div>
 
-        {fatalError ? (
-          <div className="text-center py-20 border-2 border-dashed border-red-200 rounded-3xl bg-red-50/40">
-            <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4 text-red-500">
-              <X className="w-8 h-8" />
+          {fatalError ? (
+            <div className="text-center py-20 border-2 border-dashed border-red-200 rounded-3xl bg-red-50/40">
+              <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4 text-red-500">
+                <X className="w-8 h-8" />
+              </div>
+              <h3 className="text-red-700 font-bold text-lg">配置错误</h3>
+              <p className="text-red-600 mt-1 text-sm max-w-xl mx-auto">{fatalError}</p>
             </div>
-            <h3 className="text-red-700 font-bold text-lg">配置错误</h3>
-            <p className="text-red-600 mt-1 text-sm max-w-xl mx-auto">{fatalError}</p>
-          </div>
-        ) : loading ? (
-          <div className="flex justify-center items-center py-20">
-            <Loader2 className="w-8 h-8 text-yellow-400 animate-spin" />
-          </div>
-        ) : (
-          <>
-            {filteredLinks.length > 0 ? (
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-                {filteredLinks.map(link => (
-                  <LinkCard 
-                    key={link.id} 
-                    link={link} 
-                    onEdit={() => requestAuth({ type: 'EDIT', payload: link })}
-                    onDelete={() => requestAuth({ type: 'DELETE', payload: link })}
-                  />
-                ))}
-              </div>
-            ) : (
-              <div className="text-center py-20 border-2 border-dashed border-gray-200 rounded-3xl">
-                <div className="w-16 h-16 bg-gray-50 rounded-full flex items-center justify-center mx-auto mb-4 text-gray-300">
-                  <Search className="w-8 h-8" />
+          ) : loading ? (
+            <div className="flex justify-center items-center py-20">
+              <Loader2 className="w-8 h-8 text-yellow-400 animate-spin" />
+            </div>
+          ) : (
+            <>
+              {filteredLinks.length > 0 ? (
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+                  {filteredLinks.map((link) => (
+                    <LinkCard
+                      key={link.id}
+                      link={link}
+                      onEdit={() => requestAuth({ type: 'EDIT_LINK', payload: link })}
+                      onDelete={() => requestAuth({ type: 'DELETE_LINK', payload: link })}
+                    />
+                  ))}
                 </div>
-                <h3 className="text-gray-900 font-bold text-lg">未找到闪链</h3>
-                <p className="text-gray-400 mt-1">尝试切换标签或添加新的闪链。</p>
-              </div>
-            )}
-          </>
-        )}
+              ) : (
+                <div className="text-center py-20 border-2 border-dashed border-gray-200 rounded-3xl">
+                  <div className="w-16 h-16 bg-gray-50 rounded-full flex items-center justify-center mx-auto mb-4 text-gray-300">
+                    <Search className="w-8 h-8" />
+                  </div>
+                  <h3 className="text-gray-900 font-bold text-lg">未找到链接</h3>
+                  <p className="text-gray-400 mt-1">尝试切换标签或分类，或添加新的链接。</p>
+                </div>
+              )}
+            </>
+          )}
+        </div>
       </main>
 
       {/* Main Form Modal */}
@@ -782,9 +1150,14 @@ export default function App() {
         onClose={() => setIsModalOpen(false)}
         onSave={handleSaveLink}
         initialData={editingLink}
-        categories={categories}
-        onAddCategory={(newCat) => requestAuth({ type: 'ADD_CATEGORY', payload: newCat })}
-        onDeleteCategory={(category) => requestAuth({ type: 'DELETE_CATEGORY', payload: category })}
+        tags={tags}
+        classifications={classifications}
+        onAddTag={executeAddTag}
+        onDeleteTag={executeDeleteTag}
+        onAddClassification={executeAddClassification}
+        onDeleteClassification={(classification) =>
+          requestAuth({ type: 'DELETE_CLASSIFICATION', payload: classification })
+        }
       />
       
       {/* Security Pin Modal */}
