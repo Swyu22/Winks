@@ -330,7 +330,7 @@ const LinkCard = memo(function LinkCard({ link, onEdit, onDelete }) {
       <button
         type="button"
         onClick={handleCopy}
-        className={`absolute left-6 bottom-4 h-8 px-3 rounded-lg text-xs font-bold border transition-all flex items-center gap-1 ${
+        className={`absolute left-6 bottom-4 origin-bottom-left scale-[0.65] h-8 px-3 rounded-lg text-xs font-bold border transition-all flex items-center gap-1 ${
           copied
             ? 'bg-green-50 text-green-600 border-green-200'
             : 'bg-white text-gray-500 border-gray-100 hover:border-yellow-200 hover:text-yellow-600'
