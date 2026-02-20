@@ -36,7 +36,7 @@ const getFaviconUrl = (url) => {
 const DEFAULT_TAGS = ['设计', '开发', '工具', '阅读', '灵感'];
 const DEFAULT_CLASSIFICATIONS = ['未分类'];
 const LINK_META_PREFIX = '__WINKS_META__';
-const APP_VERSION = 'v1.1.2';
+const APP_VERSION = 'v1.1.3';
 
 const normalizeName = (value) => String(value || '').replace(/^#+\s*/, '').trim();
 
@@ -82,12 +82,16 @@ const decodeLinkMeta = (rawValue) => {
 
 const hydrateLink = (link) => {
   const metadata = decodeLinkMeta(link.category);
+  const rawCategory = normalizeName(link.category);
+  const looksLikeTagList = typeof link.category === 'string' && /[,\uFF0C]/.test(link.category);
   const legacyTags = uniqueTags(parseTags(link.tags ?? link.category));
   const tags =
     uniqueTags(metadata?.tags || legacyTags).length > 0
       ? uniqueTags(metadata?.tags || legacyTags)
       : [DEFAULT_TAGS[0]];
-  const classification = normalizeName(metadata?.classification) || DEFAULT_CLASSIFICATIONS[0];
+  const classification =
+    normalizeName(metadata?.classification) ||
+    (!metadata && rawCategory && !looksLikeTagList ? rawCategory : DEFAULT_CLASSIFICATIONS[0]);
 
   return {
     ...link,
@@ -154,7 +158,6 @@ const PinModal = memo(function PinModal({ isOpen, onClose, onSuccess }) {
         </div>
         <form onSubmit={handleSubmit}>
           <input
-            autoFocus
             type="password"
             maxLength={4}
             placeholder="输入密码"
@@ -404,8 +407,9 @@ const LinkModal = ({
 
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
-            <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-1.5 ml-1">标题</label>
+            <label htmlFor="link-title-input" className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-1.5 ml-1">标题</label>
             <input
+              id="link-title-input"
               required
               type="text"
               placeholder="例如: Stripe"
@@ -416,8 +420,9 @@ const LinkModal = ({
           </div>
 
           <div>
-            <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-1.5 ml-1">链接地址</label>
+            <label htmlFor="link-url-input" className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-1.5 ml-1">链接地址</label>
             <input
+              id="link-url-input"
               required
               type="text"
               placeholder="stripe.com"
@@ -428,7 +433,7 @@ const LinkModal = ({
           </div>
 
           <div>
-            <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-1.5 ml-1">分类</label>
+            <p className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-1.5 ml-1">分类</p>
 
             <div className="flex flex-wrap gap-2 mb-2">
               {classifications.map((classification) => (
@@ -474,7 +479,6 @@ const LinkModal = ({
             {isAddingClassification && (
               <div className="flex gap-2 animate-in fade-in slide-in-from-top-2 mb-3">
                 <input
-                  autoFocus
                   type="text"
                   placeholder="输入新分类名称..."
                   className="flex-1 h-10 px-3 rounded-lg bg-white border border-yellow-200 focus:ring-2 focus:ring-yellow-100 outline-none text-sm"
@@ -500,7 +504,7 @@ const LinkModal = ({
           </div>
 
           <div>
-            <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-1.5 ml-1">标签</label>
+            <p className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-1.5 ml-1">标签</p>
 
             <div className="flex flex-wrap gap-2 mb-2">
               {tags.map((tag) => (
@@ -546,7 +550,6 @@ const LinkModal = ({
             {isAddingTag && (
               <div className="flex gap-2 animate-in fade-in slide-in-from-top-2">
                 <input
-                  autoFocus
                   type="text"
                   placeholder="输入新标签名称..."
                   className="flex-1 h-10 px-3 rounded-lg bg-white border border-yellow-200 focus:ring-2 focus:ring-yellow-100 outline-none text-sm"
@@ -1125,6 +1128,14 @@ export default function App() {
     setIsModalOpen(true);
   }, []);
 
+  const handleCloseLinkModal = useCallback(() => {
+    setIsModalOpen(false);
+  }, []);
+
+  const handleClosePinModal = useCallback(() => {
+    setIsPinOpen(false);
+  }, []);
+
   const filteredLinks = useMemo(() => {
     return links.filter((link) => {
       const matchesClassification =
@@ -1239,7 +1250,7 @@ export default function App() {
       {/* Main Form Modal */}
       <LinkModal
         isOpen={isModalOpen}
-        onClose={() => setIsModalOpen(false)}
+        onClose={handleCloseLinkModal}
         onSave={handleSaveLink}
         initialData={editingLink}
         tags={tags}
@@ -1253,7 +1264,7 @@ export default function App() {
       {/* Security Pin Modal */}
       <PinModal 
         isOpen={isPinOpen} 
-        onClose={() => setIsPinOpen(false)}
+        onClose={handleClosePinModal}
         onSuccess={handlePinSuccess}
       />
       
