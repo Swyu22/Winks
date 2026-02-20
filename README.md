@@ -16,7 +16,7 @@ npm run dev
 
 3. 浏览器访问 `http://127.0.0.1:4173`
 
-当前仓库默认是 Supabase 模式（`src/App.jsx` 中 `USE_DEMO_MODE = false`）。
+当前仓库默认是 Supabase 模式（`VITE_DEMO_MODE` 未设置或为 `false`）。
 
 ## 连接 Supabase（可选）
 
@@ -28,9 +28,10 @@ npm run dev
 ```bash
 VITE_SUPABASE_URL=你的项目URL
 VITE_SUPABASE_ANON_KEY=你的AnonKey
+VITE_DEMO_MODE=false
 ```
 
-3. 打开 `src/App.jsx`，把 `USE_DEMO_MODE` 改为 `false`。
+3. 若只想本地演示，可把 `VITE_DEMO_MODE=true`（将跳过 Supabase 请求，使用内置演示数据）。
 
 ## RLS 策略（开放读写）
 

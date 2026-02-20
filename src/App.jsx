@@ -1,32 +1,25 @@
-import { useState, useEffect, useMemo } from 'react';
+import {
+  memo,
+  startTransition,
+  useCallback,
+  useDeferredValue,
+  useEffect,
+  useMemo,
+  useState,
+} from 'react';
 import { Plus, Search, Loader2, X, Zap, Pencil, Trash2, Lock } from 'lucide-react';
-import { createClient } from '@supabase/supabase-js';
+import { getSupabaseClient, getSupabaseInitError } from './lib/supabaseClient';
 
 // ==========================================
 // 🚀 部署配置开关 (DEPLOYMENT CONFIG)
 // ==========================================
-// 本地开发预览设为 true。
-// 正式上线连接 Supabase 时设为 false，并确保配置了 .env 环境变量。
-const USE_DEMO_MODE = false; 
+// 通过 .env 控制模式：VITE_DEMO_MODE=true 使用本地演示数据。
+const USE_DEMO_MODE = import.meta.env.VITE_DEMO_MODE === 'true';
 
 // ==========================================
 // 🛠️ 初始化 Supabase
 // ==========================================
-let supabase = null;
-let supabaseInitError = '';
-
-if (!USE_DEMO_MODE) {
-  // 生产环境配置
-  const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
-  const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
-  
-  if (supabaseUrl && supabaseKey) {
-    supabase = createClient(supabaseUrl, supabaseKey);
-  } else {
-    supabaseInitError = '缺少 Supabase 环境变量，请检查 VITE_SUPABASE_URL 和 VITE_SUPABASE_ANON_KEY。';
-    console.error(supabaseInitError);
-  }
-}
+const supabaseInitError = getSupabaseInitError(USE_DEMO_MODE);
 
 // ==========================================
 // 🧩 辅助工具
@@ -122,7 +115,7 @@ const collectClassificationsFromLinks = (items) => {
 // 🔐 安全组件 (Security)
 // ==========================================
 
-const PinModal = ({ isOpen, onClose, onSuccess }) => {
+const PinModal = memo(function PinModal({ isOpen, onClose, onSuccess }) {
   const [pin, setPin] = useState('');
   const [error, setError] = useState(false);
 
@@ -180,37 +173,56 @@ const PinModal = ({ isOpen, onClose, onSuccess }) => {
       </div>
     </div>
   );
-};
+});
 
 // ==========================================
 // 🎨 业务组件 (Components)
 // ==========================================
 
-const Logo = () => (
-  <div className="flex items-center gap-2 group cursor-pointer select-none">
-    <div className="w-8 h-8 rounded-full bg-yellow-400 flex items-center justify-center shadow-[0_0_10px_rgba(250,204,21,0.4)] group-hover:shadow-[0_0_15px_rgba(250,204,21,0.6)] transition-all duration-300">
-      <Zap className="w-5 h-5 text-white fill-white" />
+const Logo = memo(function Logo() {
+  return (
+    <div className="flex items-center gap-2 group cursor-pointer select-none">
+      <div className="w-8 h-8 rounded-full bg-yellow-400 flex items-center justify-center shadow-[0_0_10px_rgba(250,204,21,0.4)] group-hover:shadow-[0_0_15px_rgba(250,204,21,0.6)] transition-all duration-300">
+        <Zap className="w-5 h-5 text-white fill-white" />
+      </div>
+      <span className="font-bold text-xl tracking-tight text-gray-800">Winks.闪链</span>
     </div>
-    <span className="font-bold text-xl tracking-tight text-gray-800">Winks.闪链</span>
-  </div>
-);
+  );
+});
 
-const LinkCard = ({ link, onEdit, onDelete }) => {
+const LinkCard = memo(function LinkCard({ link, onEdit, onDelete }) {
   const [imgError, setImgError] = useState(false);
   const favicon = getFaviconUrl(link.url);
+  const handleEdit = useCallback(
+    (e) => {
+      e.preventDefault();
+      onEdit(link);
+    },
+    [link, onEdit],
+  );
+  const handleDelete = useCallback(
+    (e) => {
+      e.preventDefault();
+      onDelete(link);
+    },
+    [link, onDelete],
+  );
 
   return (
-    <div className="group relative flex flex-col p-6 min-h-[10rem] bg-white rounded-2xl border border-gray-100 transition-all duration-300 hover:-translate-y-1 hover:border-yellow-200 hover:shadow-[0_0_30px_rgba(250,204,21,0.25)]">
+    <div
+      className="group relative flex flex-col p-6 min-h-[10rem] bg-white rounded-2xl border border-gray-100 transition-all duration-300 hover:-translate-y-1 hover:border-yellow-200 hover:shadow-[0_0_30px_rgba(250,204,21,0.25)]"
+      style={{ contentVisibility: 'auto', containIntrinsicSize: '160px' }}
+    >
       <div className="absolute top-4 right-4 flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity duration-200 z-10">
         <button
-          onClick={(e) => { e.preventDefault(); onEdit(link); }}
+          onClick={handleEdit}
           className="p-1.5 bg-gray-100 hover:bg-yellow-400 hover:text-white rounded-lg text-gray-500 transition-colors"
           title="编辑"
         >
           <Pencil className="w-3.5 h-3.5" />
         </button>
         <button
-          onClick={(e) => { e.preventDefault(); onDelete(link); }}
+          onClick={handleDelete}
           className="p-1.5 bg-gray-100 hover:bg-red-500 hover:text-white rounded-lg text-gray-500 transition-colors"
           title="删除"
         >
@@ -226,6 +238,8 @@ const LinkCard = ({ link, onEdit, onDelete }) => {
                 src={favicon}
                 alt={link.title}
                 onError={() => setImgError(true)}
+                loading="lazy"
+                decoding="async"
                 className="w-10 h-10 rounded-lg object-contain bg-gray-50 p-1"
               />
             ) : (
@@ -251,7 +265,7 @@ const LinkCard = ({ link, onEdit, onDelete }) => {
       </a>
     </div>
   );
-};
+});
 
 // Unified Modal for Add and Edit
 const LinkModal = ({
@@ -328,8 +342,6 @@ const LinkModal = ({
     if (!/^https?:\/\//i.test(finalUrl)) {
       finalUrl = `https://${finalUrl}`;
     }
-
-    if (USE_DEMO_MODE) await new Promise((r) => setTimeout(r, 600));
 
     let saved = false;
     try {
@@ -572,12 +584,12 @@ const LinkModal = ({
   );
 };
 
-const CategorySidebar = ({
+const CategorySidebar = memo(function CategorySidebar({
   classifications,
   activeClassification,
   onSelectClassification,
   onDeleteClassification,
-}) => {
+}) {
   return (
     <>
       <aside className="hidden lg:block fixed left-0 top-20 bottom-0 w-64 border-r border-gray-100 bg-white z-30">
@@ -662,7 +674,7 @@ const CategorySidebar = ({
       </div>
     </>
   );
-};
+});
 
 // ==========================================
 // 🚀 主程序 (Main App)
@@ -683,89 +695,111 @@ export default function App() {
   const [isPinOpen, setIsPinOpen] = useState(false);
   const [pendingAction, setPendingAction] = useState(null);
 
-  useEffect(() => {
-    fetchLinks();
-  }, []);
+  const deferredTagFilter = useDeferredValue(tagFilter);
+  const deferredClassificationFilter = useDeferredValue(classificationFilter);
 
-  const showSupabaseError = (action, error) => {
+  const showSupabaseError = useCallback((action, error) => {
     const message = error?.message || '未知错误';
     console.error(`${action}失败:`, message);
     alert(`${action}失败：${message}`);
-  };
+  }, []);
 
-  const fetchLinks = async () => {
+  const resolveSupabaseClient = useCallback(
+    async (actionForError) => {
+      try {
+        return await getSupabaseClient({ useDemoMode: USE_DEMO_MODE });
+      } catch (error) {
+        showSupabaseError(actionForError, error);
+        return null;
+      }
+    },
+    [showSupabaseError],
+  );
+
+  const fetchLinks = useCallback(async () => {
     setLoading(true);
 
-    if (!USE_DEMO_MODE && !supabase) {
-      setFatalError(supabaseInitError || 'Supabase 初始化失败，请检查环境变量配置。');
+    if (USE_DEMO_MODE) {
+      const demoLinks = [
+        {
+          id: 1,
+          title: 'Supabase',
+          url: 'https://supabase.com',
+          category: encodeLinkMeta('开发', ['开发', '工具']),
+        },
+        {
+          id: 2,
+          title: 'Tailwind CSS',
+          url: 'https://tailwindcss.com',
+          category: encodeLinkMeta('开发', ['开发', '设计']),
+        },
+        {
+          id: 3,
+          title: 'Dribbble',
+          url: 'https://dribbble.com',
+          category: encodeLinkMeta('设计', ['设计', '灵感']),
+        },
+        {
+          id: 4,
+          title: 'Framer',
+          url: 'https://framer.com',
+          category: encodeLinkMeta('设计', ['设计', '工具']),
+        },
+        {
+          id: 5,
+          title: 'Linear',
+          url: 'https://linear.app',
+          category: encodeLinkMeta('工具', ['工具']),
+        },
+      ];
+      const normalizedLinks = demoLinks.map((link) => hydrateLink(link));
+      setLinks(normalizedLinks);
+      setTags(collectTagsFromLinks(normalizedLinks));
+      setClassifications(collectClassificationsFromLinks(normalizedLinks));
+      setFatalError('');
       setLoading(false);
       return;
     }
-    
-    if (USE_DEMO_MODE) {
-      setTimeout(() => {
-        const demoLinks = [
-          {
-            id: 1,
-            title: 'Supabase',
-            url: 'https://supabase.com',
-            category: encodeLinkMeta('开发', ['开发', '工具']),
-          },
-          {
-            id: 2,
-            title: 'Tailwind CSS',
-            url: 'https://tailwindcss.com',
-            category: encodeLinkMeta('开发', ['开发', '设计']),
-          },
-          {
-            id: 3,
-            title: 'Dribbble',
-            url: 'https://dribbble.com',
-            category: encodeLinkMeta('设计', ['设计', '灵感']),
-          },
-          {
-            id: 4,
-            title: 'Framer',
-            url: 'https://framer.com',
-            category: encodeLinkMeta('设计', ['设计', '工具']),
-          },
-          {
-            id: 5,
-            title: 'Linear',
-            url: 'https://linear.app',
-            category: encodeLinkMeta('工具', ['工具']),
-          },
-        ];
-        const normalizedLinks = demoLinks.map((link) => hydrateLink(link));
-        setLinks(normalizedLinks);
-        setTags(collectTagsFromLinks(normalizedLinks));
-        setClassifications(collectClassificationsFromLinks(normalizedLinks));
-        setFatalError('');
-        setLoading(false);
-      }, 800);
-    } else if (supabase) {
-      const { data, error } = await supabase
-        .from('links')
-        .select('*')
-        .order('created_at', { ascending: false });
 
-      if (error) {
-        showSupabaseError('加载数据', error);
-      } else if (data) {
-        const normalizedLinks = data.map((link) => hydrateLink(link));
-        setLinks(normalizedLinks);
-        setTags(collectTagsFromLinks(normalizedLinks));
-        setClassifications(collectClassificationsFromLinks(normalizedLinks));
-        setFatalError('');
-      }
+    if (supabaseInitError) {
+      setFatalError(supabaseInitError);
       setLoading(false);
+      return;
     }
-  };
 
-  const requestAuth = (action) => {
+    const client = await resolveSupabaseClient('加载数据');
+    if (!client) {
+      setFatalError('Supabase 初始化失败，请检查环境变量配置。');
+      setLoading(false);
+      return;
+    }
+
+    const { data, error } = await client
+      .from('links')
+      .select('*')
+      .order('created_at', { ascending: false });
+
+    if (error) {
+      showSupabaseError('加载数据', error);
+    } else if (data) {
+      const normalizedLinks = data.map((link) => hydrateLink(link));
+      setLinks(normalizedLinks);
+      setTags(collectTagsFromLinks(normalizedLinks));
+      setClassifications(collectClassificationsFromLinks(normalizedLinks));
+      setFatalError('');
+    }
+
+    setLoading(false);
+  }, [resolveSupabaseClient, showSupabaseError]);
+
+  useEffect(() => {
+    void fetchLinks();
+  }, [fetchLinks]);
+
+  const requestAuth = useCallback((action) => {
     setPendingAction(action);
     setIsPinOpen(true);
-  };
+  }, []);
 
   const handlePinSuccess = async () => {
     if (!pendingAction) return;
@@ -784,7 +818,7 @@ export default function App() {
     setPendingAction(null);
   };
 
-  const executeAddTag = (newTag) => {
+  const executeAddTag = useCallback((newTag) => {
     const normalizedTag = normalizeTag(newTag);
     if (!normalizedTag) {
       return null;
@@ -795,9 +829,9 @@ export default function App() {
     }
 
     return normalizedTag;
-  };
+  }, [tags]);
 
-  const executeDeleteTag = async (tagToDelete) => {
+  const executeDeleteTag = useCallback(async (tagToDelete) => {
     const normalizedTag = normalizeTag(tagToDelete);
 
     if (!tags.includes(normalizedTag)) {
@@ -841,33 +875,35 @@ export default function App() {
       return;
     }
 
-    if (supabase) {
-      const affectedLinks = links.filter((link) => link.tags.includes(normalizedTag));
-
-      const updateResults = await Promise.all(
-        affectedLinks.map((link) => {
-          const nextTags = link.tags.filter((tag) => tag !== normalizedTag);
-          const safeTags = nextTags.length > 0 ? nextTags : [fallbackTag];
-          return supabase
-            .from('links')
-            .update({ category: encodeLinkMeta(link.category, safeTags) })
-            .eq('id', link.id);
-        }),
-      );
-
-      const failed = updateResults.find((result) => result.error);
-      if (failed?.error) {
-        showSupabaseError('删除标签', failed.error);
-        return;
-      }
-
-      applyLocalTagDelete();
-    } else {
+    const client = await resolveSupabaseClient('删除标签');
+    if (!client) {
       alert('Supabase 未初始化，无法删除标签。');
+      return;
     }
-  };
 
-  const executeAddClassification = (newClassification) => {
+    const affectedLinks = links.filter((link) => link.tags.includes(normalizedTag));
+
+    const updateResults = await Promise.all(
+      affectedLinks.map((link) => {
+        const nextTags = link.tags.filter((tag) => tag !== normalizedTag);
+        const safeTags = nextTags.length > 0 ? nextTags : [fallbackTag];
+        return client
+          .from('links')
+          .update({ category: encodeLinkMeta(link.category, safeTags) })
+          .eq('id', link.id);
+      }),
+    );
+
+    const failed = updateResults.find((result) => result.error);
+    if (failed?.error) {
+      showSupabaseError('删除标签', failed.error);
+      return;
+    }
+
+    applyLocalTagDelete();
+  }, [links, resolveSupabaseClient, showSupabaseError, tags]);
+
+  const executeAddClassification = useCallback((newClassification) => {
     const normalizedClassification = normalizeName(newClassification);
     if (!normalizedClassification) {
       return null;
@@ -878,9 +914,9 @@ export default function App() {
     }
 
     return normalizedClassification;
-  };
+  }, [classifications]);
 
-  const executeDeleteClassification = async (classificationToDelete) => {
+  const executeDeleteClassification = useCallback(async (classificationToDelete) => {
     const normalizedClassification = normalizeName(classificationToDelete);
 
     if (!classifications.includes(normalizedClassification)) {
@@ -920,50 +956,53 @@ export default function App() {
       return;
     }
 
-    if (supabase) {
-      const affectedLinks = links.filter((link) => link.category === normalizedClassification);
-      const updateResults = await Promise.all(
-        affectedLinks.map((link) =>
-          supabase
-            .from('links')
-            .update({ category: encodeLinkMeta(fallbackClassification, link.tags) })
-            .eq('id', link.id),
-        ),
-      );
-
-      const failed = updateResults.find((result) => result.error);
-      if (failed?.error) {
-        showSupabaseError('删除分类', failed.error);
-        return;
-      }
-
-      applyLocalClassificationDelete();
-    } else {
+    const client = await resolveSupabaseClient('删除分类');
+    if (!client) {
       alert('Supabase 未初始化，无法删除分类。');
+      return;
     }
-  };
 
-  const executeDeleteLink = async (linkToDelete) => {
+    const affectedLinks = links.filter((link) => link.category === normalizedClassification);
+    const updateResults = await Promise.all(
+      affectedLinks.map((link) =>
+        client
+          .from('links')
+          .update({ category: encodeLinkMeta(fallbackClassification, link.tags) })
+          .eq('id', link.id),
+      ),
+    );
+
+    const failed = updateResults.find((result) => result.error);
+    if (failed?.error) {
+      showSupabaseError('删除分类', failed.error);
+      return;
+    }
+
+    applyLocalClassificationDelete();
+  }, [classifications, links, resolveSupabaseClient, showSupabaseError]);
+
+  const executeDeleteLink = useCallback(async (linkToDelete) => {
     if (USE_DEMO_MODE) {
       setLinks((prev) => prev.filter((l) => l.id !== linkToDelete.id));
-    } else if (supabase) {
-      const { error } = await supabase.from('links').delete().eq('id', linkToDelete.id);
-      if (error) {
-        showSupabaseError('删除链接', error);
-        return;
-      }
-      setLinks((prev) => prev.filter((l) => l.id !== linkToDelete.id));
-    } else {
+      return;
+    }
+
+    const client = await resolveSupabaseClient('删除链接');
+    if (!client) {
       alert('Supabase 未初始化，无法删除链接。');
-    }
-  };
-
-  const handleSaveLink = async (linkData) => {
-    if (!USE_DEMO_MODE && !supabase) {
-      alert('Supabase 未初始化，无法保存链接。');
-      return false;
+      return;
     }
 
+    const { error } = await client.from('links').delete().eq('id', linkToDelete.id);
+    if (error) {
+      showSupabaseError('删除链接', error);
+      return;
+    }
+
+    setLinks((prev) => prev.filter((l) => l.id !== linkToDelete.id));
+  }, [resolveSupabaseClient, showSupabaseError]);
+
+  const handleSaveLink = useCallback(async (linkData) => {
     const normalizedTags = uniqueTags(parseTags(linkData.tags));
     const safeTags = normalizedTags.length > 0 ? normalizedTags : [tags[0] || DEFAULT_TAGS[0]];
     const safeClassification =
@@ -986,24 +1025,33 @@ export default function App() {
         setTags((prev) => uniqueTags([...prev, ...normalizedLinkData.tags]));
         setClassifications((prev) => uniqueClassifications([...prev, normalizedLinkData.category]));
         return true;
-      } else if (supabase) {
-        const { data, error } = await supabase
-          .from('links')
-          .update(dbPayload)
-          .eq('id', editingLink.id)
-          .select();
-        if (error) {
-          showSupabaseError('更新链接', error);
-          return false;
-        }
-        if (data?.[0]) {
-          const hydrated = hydrateLink(data[0]);
-          setLinks((prev) => prev.map((link) => (link.id === hydrated.id ? hydrated : link)));
-          setTags((prev) => uniqueTags([...prev, ...hydrated.tags]));
-          setClassifications((prev) => uniqueClassifications([...prev, hydrated.category]));
-        }
-        return true;
       }
+
+      const client = await resolveSupabaseClient('更新链接');
+      if (!client) {
+        alert('Supabase 未初始化，无法保存链接。');
+        return false;
+      }
+
+      const { data, error } = await client
+        .from('links')
+        .update(dbPayload)
+        .eq('id', editingLink.id)
+        .select();
+
+      if (error) {
+        showSupabaseError('更新链接', error);
+        return false;
+      }
+
+      if (data?.[0]) {
+        const hydrated = hydrateLink(data[0]);
+        setLinks((prev) => prev.map((link) => (link.id === hydrated.id ? hydrated : link)));
+        setTags((prev) => uniqueTags([...prev, ...hydrated.tags]));
+        setClassifications((prev) => uniqueClassifications([...prev, hydrated.category]));
+      }
+
+      return true;
     } else {
       // Create
       const newLink = { ...normalizedLinkData, id: Date.now() };
@@ -1012,33 +1060,79 @@ export default function App() {
         setTags((prev) => uniqueTags([...prev, ...normalizedLinkData.tags]));
         setClassifications((prev) => uniqueClassifications([...prev, normalizedLinkData.category]));
         return true;
-      } else if (supabase) {
-        const { data, error } = await supabase.from('links').insert([dbPayload]).select();
-        if (error) {
-          showSupabaseError('新增链接', error);
-          return false;
-        }
-        if (data?.[0]) {
-          const hydrated = hydrateLink(data[0]);
-          setLinks((prev) => [hydrated, ...prev]);
-          setTags((prev) => uniqueTags([...prev, ...hydrated.tags]));
-          setClassifications((prev) => uniqueClassifications([...prev, hydrated.category]));
-        }
-        return true;
       }
+
+      const client = await resolveSupabaseClient('新增链接');
+      if (!client) {
+        alert('Supabase 未初始化，无法保存链接。');
+        return false;
+      }
+
+      const { data, error } = await client.from('links').insert([dbPayload]).select();
+      if (error) {
+        showSupabaseError('新增链接', error);
+        return false;
+      }
+
+      if (data?.[0]) {
+        const hydrated = hydrateLink(data[0]);
+        setLinks((prev) => [hydrated, ...prev]);
+        setTags((prev) => uniqueTags([...prev, ...hydrated.tags]));
+        setClassifications((prev) => uniqueClassifications([...prev, hydrated.category]));
+      }
+
+      return true;
     }
 
     return false;
-  };
+  }, [classifications, editingLink, resolveSupabaseClient, showSupabaseError, tags]);
+
+  const handleSelectTagFilter = useCallback((nextTag) => {
+    startTransition(() => {
+      setTagFilter(nextTag);
+    });
+  }, []);
+
+  const handleSelectClassificationFilter = useCallback((nextClassification) => {
+    startTransition(() => {
+      setClassificationFilter(nextClassification);
+    });
+  }, []);
+
+  const handleDeleteClassificationRequest = useCallback(
+    (classification) => {
+      requestAuth({ type: 'DELETE_CLASSIFICATION', payload: classification });
+    },
+    [requestAuth],
+  );
+
+  const handleEditLinkRequest = useCallback(
+    (link) => {
+      requestAuth({ type: 'EDIT_LINK', payload: link });
+    },
+    [requestAuth],
+  );
+
+  const handleDeleteLinkRequest = useCallback(
+    (link) => {
+      requestAuth({ type: 'DELETE_LINK', payload: link });
+    },
+    [requestAuth],
+  );
+
+  const handleOpenCreateModal = useCallback(() => {
+    setEditingLink(null);
+    setIsModalOpen(true);
+  }, []);
 
   const filteredLinks = useMemo(() => {
     return links.filter((link) => {
       const matchesClassification =
-        classificationFilter === '全部' || link.category === classificationFilter;
-      const matchesTag = tagFilter === '全部' || link.tags.includes(tagFilter);
+        deferredClassificationFilter === '全部' || link.category === deferredClassificationFilter;
+      const matchesTag = deferredTagFilter === '全部' || link.tags.includes(deferredTagFilter);
       return matchesClassification && matchesTag;
     });
-  }, [links, classificationFilter, tagFilter]);
+  }, [deferredClassificationFilter, deferredTagFilter, links]);
 
   return (
     <div className="min-h-screen bg-gray-50 text-gray-900 font-sans selection:bg-yellow-200 flex flex-col">
@@ -1049,7 +1143,7 @@ export default function App() {
           </div>
           <div className="flex items-center gap-4">
             <button
-              onClick={() => { setEditingLink(null); setIsModalOpen(true); }}
+              onClick={handleOpenCreateModal}
               className="bg-gray-900 hover:bg-black text-white px-5 py-2.5 rounded-full font-bold text-sm transition-all hover:shadow-[0_4px_20px_-5px_rgba(0,0,0,0.3)] hover:scale-105 active:scale-95 flex items-center gap-2"
             >
               <Plus className="w-4 h-4" />
@@ -1062,10 +1156,8 @@ export default function App() {
       <CategorySidebar
         classifications={classifications}
         activeClassification={classificationFilter}
-        onSelectClassification={setClassificationFilter}
-        onDeleteClassification={(classification) =>
-          requestAuth({ type: 'DELETE_CLASSIFICATION', payload: classification })
-        }
+        onSelectClassification={handleSelectClassificationFilter}
+        onDeleteClassification={handleDeleteClassificationRequest}
       />
 
       <main className="w-full px-6 pt-28 pb-20 flex-grow lg:pl-[18.5rem]">
@@ -1081,7 +1173,7 @@ export default function App() {
 
           <div className="flex flex-wrap items-center gap-2 mb-10 overflow-x-auto pb-3">
             <button
-              onClick={() => setTagFilter('全部')}
+              onClick={() => handleSelectTagFilter('全部')}
               className={`px-4 py-2 rounded-full text-sm font-bold transition-all whitespace-nowrap ${
                 tagFilter === '全部'
                   ? 'bg-yellow-400 text-white shadow-[0_4px_15px_rgba(250,204,21,0.4)]'
@@ -1093,7 +1185,7 @@ export default function App() {
             {tags.map((tag) => (
               <button
                 key={tag}
-                onClick={() => setTagFilter(tag)}
+                onClick={() => handleSelectTagFilter(tag)}
                 className={`px-4 py-2 rounded-full text-sm font-bold transition-all whitespace-nowrap ${
                   tagFilter === tag
                     ? 'bg-yellow-400 text-white shadow-[0_4px_15px_rgba(250,204,21,0.4)]'
@@ -1125,8 +1217,8 @@ export default function App() {
                     <LinkCard
                       key={link.id}
                       link={link}
-                      onEdit={() => requestAuth({ type: 'EDIT_LINK', payload: link })}
-                      onDelete={() => requestAuth({ type: 'DELETE_LINK', payload: link })}
+                      onEdit={handleEditLinkRequest}
+                      onDelete={handleDeleteLinkRequest}
                     />
                   ))}
                 </div>
@@ -1155,9 +1247,7 @@ export default function App() {
         onAddTag={executeAddTag}
         onDeleteTag={executeDeleteTag}
         onAddClassification={executeAddClassification}
-        onDeleteClassification={(classification) =>
-          requestAuth({ type: 'DELETE_CLASSIFICATION', payload: classification })
-        }
+        onDeleteClassification={handleDeleteClassificationRequest}
       />
       
       {/* Security Pin Modal */}
