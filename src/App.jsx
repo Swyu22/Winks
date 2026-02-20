@@ -7,7 +7,7 @@ import {
   useMemo,
   useState,
 } from 'react';
-import { Plus, Search, Loader2, X, Zap, Pencil, Trash2, Lock } from 'lucide-react';
+import { Plus, Search, Loader2, X, Zap, Pencil, Trash2, Lock, Copy } from 'lucide-react';
 import { getSupabaseClient, getSupabaseInitError } from './lib/supabaseClient';
 
 // ==========================================
@@ -35,8 +35,9 @@ const getFaviconUrl = (url) => {
 
 const DEFAULT_TAGS = ['设计', '开发', '工具', '阅读', '灵感'];
 const DEFAULT_CLASSIFICATIONS = ['未分类'];
+const DEFAULT_BOARDS = ['网站', '页面'];
 const LINK_META_PREFIX = '__WINKS_META__';
-const APP_VERSION = 'v1.1.3';
+const APP_VERSION = 'v1.2.0';
 
 const normalizeName = (value) => String(value || '').replace(/^#+\s*/, '').trim();
 
@@ -62,10 +63,24 @@ const uniqueClassifications = (items) => Array.from(new Set(items.map((item) => 
 
 const formatTag = (tag) => `#${tag}`;
 
-const encodeLinkMeta = (classification, tags) =>
+const isKnownBoard = (value) => DEFAULT_BOARDS.includes(value);
+
+const createDefaultBoardOptions = () =>
+  Object.fromEntries(
+    DEFAULT_BOARDS.map((board) => [
+      board,
+      {
+        tags: [...DEFAULT_TAGS],
+        classifications: [...DEFAULT_CLASSIFICATIONS],
+      },
+    ]),
+  );
+
+const encodeLinkMeta = (classification, tags, board = DEFAULT_BOARDS[0]) =>
   `${LINK_META_PREFIX}${JSON.stringify({
     classification: normalizeName(classification) || DEFAULT_CLASSIFICATIONS[0],
     tags: uniqueTags(tags),
+    board: isKnownBoard(normalizeName(board)) ? normalizeName(board) : DEFAULT_BOARDS[0],
   })}`;
 
 const decodeLinkMeta = (rawValue) => {
@@ -84,6 +99,7 @@ const hydrateLink = (link) => {
   const metadata = decodeLinkMeta(link.category);
   const rawCategory = normalizeName(link.category);
   const looksLikeTagList = typeof link.category === 'string' && /[,\uFF0C]/.test(link.category);
+  const rawBoard = normalizeName(metadata?.board);
   const legacyTags = uniqueTags(parseTags(link.tags ?? link.category));
   const tags =
     uniqueTags(metadata?.tags || legacyTags).length > 0
@@ -92,11 +108,13 @@ const hydrateLink = (link) => {
   const classification =
     normalizeName(metadata?.classification) ||
     (!metadata && rawCategory && !looksLikeTagList ? rawCategory : DEFAULT_CLASSIFICATIONS[0]);
+  const board = isKnownBoard(rawBoard) ? rawBoard : DEFAULT_BOARDS[0];
 
   return {
     ...link,
     tags,
     category: classification,
+    board,
   };
 };
 
@@ -113,6 +131,20 @@ const collectClassificationsFromLinks = (items) => {
   }
 
   return uniqueClassifications([DEFAULT_CLASSIFICATIONS[0], ...normalizedClassifications]);
+};
+
+const buildBoardOptionsFromLinks = (items) => {
+  const next = createDefaultBoardOptions();
+
+  for (const board of DEFAULT_BOARDS) {
+    const boardLinks = items.filter((item) => item.board === board);
+    next[board] = {
+      tags: collectTagsFromLinks(boardLinks),
+      classifications: collectClassificationsFromLinks(boardLinks),
+    };
+  }
+
+  return next;
 };
 
 // ==========================================
@@ -195,6 +227,7 @@ const Logo = memo(function Logo() {
 
 const LinkCard = memo(function LinkCard({ link, onEdit, onDelete }) {
   const [imgError, setImgError] = useState(false);
+  const [copied, setCopied] = useState(false);
   const favicon = getFaviconUrl(link.url);
   const handleEdit = useCallback(
     (e) => {
@@ -210,10 +243,37 @@ const LinkCard = memo(function LinkCard({ link, onEdit, onDelete }) {
     },
     [link, onDelete],
   );
+  const handleCopy = useCallback(
+    async (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+
+      try {
+        if (navigator?.clipboard?.writeText) {
+          await navigator.clipboard.writeText(link.url);
+        } else {
+          const textarea = document.createElement('textarea');
+          textarea.value = link.url;
+          textarea.setAttribute('readonly', '');
+          textarea.style.position = 'fixed';
+          textarea.style.opacity = '0';
+          document.body.appendChild(textarea);
+          textarea.select();
+          document.execCommand('copy');
+          document.body.removeChild(textarea);
+        }
+        setCopied(true);
+        window.setTimeout(() => setCopied(false), 1200);
+      } catch {
+        alert('复制链接失败，请重试。');
+      }
+    },
+    [link.url],
+  );
 
   return (
     <div
-      className="group relative flex flex-col p-6 min-h-[10rem] bg-white rounded-2xl border border-gray-100 transition-all duration-300 hover:-translate-y-1 hover:border-yellow-200 hover:shadow-[0_0_30px_rgba(250,204,21,0.25)]"
+      className="group relative flex flex-col p-6 pb-16 min-h-[10rem] bg-white rounded-2xl border border-gray-100 transition-all duration-300 hover:-translate-y-1 hover:border-yellow-200 hover:shadow-[0_0_30px_rgba(250,204,21,0.25)]"
       style={{ contentVisibility: 'auto', containIntrinsicSize: '160px' }}
     >
       <div className="absolute top-4 right-4 flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity duration-200 z-10">
@@ -266,6 +326,20 @@ const LinkCard = memo(function LinkCard({ link, onEdit, onDelete }) {
           </div>
         </div>
       </a>
+
+      <button
+        type="button"
+        onClick={handleCopy}
+        className={`absolute left-6 bottom-4 h-8 px-3 rounded-lg text-xs font-bold border transition-all flex items-center gap-1 ${
+          copied
+            ? 'bg-green-50 text-green-600 border-green-200'
+            : 'bg-white text-gray-500 border-gray-100 hover:border-yellow-200 hover:text-yellow-600'
+        }`}
+        title="复制链接"
+      >
+        <Copy className="w-3.5 h-3.5" />
+        {copied ? '已复制' : '复制链接'}
+      </button>
     </div>
   );
 });
@@ -685,8 +759,8 @@ const CategorySidebar = memo(function CategorySidebar({
 
 export default function App() {
   const [links, setLinks] = useState([]);
-  const [tags, setTags] = useState(DEFAULT_TAGS);
-  const [classifications, setClassifications] = useState(DEFAULT_CLASSIFICATIONS);
+  const [activeBoard, setActiveBoard] = useState(DEFAULT_BOARDS[0]);
+  const [boardOptions, setBoardOptions] = useState(createDefaultBoardOptions);
   const [tagFilter, setTagFilter] = useState('全部');
   const [classificationFilter, setClassificationFilter] = useState('全部');
   const [loading, setLoading] = useState(true);
@@ -697,6 +771,13 @@ export default function App() {
   const [editingLink, setEditingLink] = useState(null); 
   const [isPinOpen, setIsPinOpen] = useState(false);
   const [pendingAction, setPendingAction] = useState(null);
+
+  const activeOptions = boardOptions[activeBoard] || {
+    tags: DEFAULT_TAGS,
+    classifications: DEFAULT_CLASSIFICATIONS,
+  };
+  const activeTags = activeOptions.tags;
+  const activeClassifications = activeOptions.classifications;
 
   const deferredTagFilter = useDeferredValue(tagFilter);
   const deferredClassificationFilter = useDeferredValue(classificationFilter);
@@ -757,8 +838,7 @@ export default function App() {
       ];
       const normalizedLinks = demoLinks.map((link) => hydrateLink(link));
       setLinks(normalizedLinks);
-      setTags(collectTagsFromLinks(normalizedLinks));
-      setClassifications(collectClassificationsFromLinks(normalizedLinks));
+      setBoardOptions(buildBoardOptionsFromLinks(normalizedLinks));
       setFatalError('');
       setLoading(false);
       return;
@@ -787,8 +867,7 @@ export default function App() {
     } else if (data) {
       const normalizedLinks = data.map((link) => hydrateLink(link));
       setLinks(normalizedLinks);
-      setTags(collectTagsFromLinks(normalizedLinks));
-      setClassifications(collectClassificationsFromLinks(normalizedLinks));
+      setBoardOptions(buildBoardOptionsFromLinks(normalizedLinks));
       setFatalError('');
     }
 
@@ -827,32 +906,50 @@ export default function App() {
       return null;
     }
 
-    if (!tags.includes(normalizedTag)) {
-      setTags((prev) => [...prev, normalizedTag]);
+    if (!activeTags.includes(normalizedTag)) {
+      setBoardOptions((prev) => ({
+        ...prev,
+        [activeBoard]: {
+          ...(prev[activeBoard] || {
+            tags: DEFAULT_TAGS,
+            classifications: DEFAULT_CLASSIFICATIONS,
+          }),
+          tags: uniqueTags([...(prev[activeBoard]?.tags || DEFAULT_TAGS), normalizedTag]),
+        },
+      }));
     }
 
     return normalizedTag;
-  }, [tags]);
+  }, [activeBoard, activeTags]);
 
   const executeDeleteTag = useCallback(async (tagToDelete) => {
     const normalizedTag = normalizeTag(tagToDelete);
 
-    if (!tags.includes(normalizedTag)) {
+    if (!activeTags.includes(normalizedTag)) {
       return;
     }
 
-    if (tags.length <= 1) {
+    if (activeTags.length <= 1) {
       alert('至少保留一个标签。');
       return;
     }
 
-    const fallbackTag = tags.find((tag) => tag !== normalizedTag) || DEFAULT_TAGS[0];
+    const fallbackTag = activeTags.find((tag) => tag !== normalizedTag) || DEFAULT_TAGS[0];
 
     const applyLocalTagDelete = () => {
-      setTags((prev) => prev.filter((tag) => tag !== normalizedTag));
+      setBoardOptions((prev) => ({
+        ...prev,
+        [activeBoard]: {
+          ...(prev[activeBoard] || {
+            tags: DEFAULT_TAGS,
+            classifications: DEFAULT_CLASSIFICATIONS,
+          }),
+          tags: (prev[activeBoard]?.tags || DEFAULT_TAGS).filter((tag) => tag !== normalizedTag),
+        },
+      }));
       setLinks((prev) =>
         prev.map((link) =>
-          link.tags.includes(normalizedTag)
+          link.board === activeBoard && link.tags.includes(normalizedTag)
             ? (() => {
                 const nextTags = link.tags.filter((tag) => tag !== normalizedTag);
                 const safeTags = nextTags.length > 0 ? nextTags : [fallbackTag];
@@ -863,7 +960,7 @@ export default function App() {
       );
       setTagFilter((prev) => (prev === normalizedTag ? '全部' : prev));
       setEditingLink((prev) =>
-        prev && prev.tags.includes(normalizedTag)
+        prev && prev.board === activeBoard && prev.tags.includes(normalizedTag)
           ? (() => {
               const nextTags = prev.tags.filter((tag) => tag !== normalizedTag);
               const safeTags = nextTags.length > 0 ? nextTags : [fallbackTag];
@@ -884,7 +981,9 @@ export default function App() {
       return;
     }
 
-    const affectedLinks = links.filter((link) => link.tags.includes(normalizedTag));
+    const affectedLinks = links.filter(
+      (link) => link.board === activeBoard && link.tags.includes(normalizedTag),
+    );
 
     const updateResults = await Promise.all(
       affectedLinks.map((link) => {
@@ -892,7 +991,7 @@ export default function App() {
         const safeTags = nextTags.length > 0 ? nextTags : [fallbackTag];
         return client
           .from('links')
-          .update({ category: encodeLinkMeta(link.category, safeTags) })
+          .update({ category: encodeLinkMeta(link.category, safeTags, link.board) })
           .eq('id', link.id);
       }),
     );
@@ -904,7 +1003,7 @@ export default function App() {
     }
 
     applyLocalTagDelete();
-  }, [links, resolveSupabaseClient, showSupabaseError, tags]);
+  }, [activeBoard, activeTags, links, resolveSupabaseClient, showSupabaseError]);
 
   const executeAddClassification = useCallback((newClassification) => {
     const normalizedClassification = normalizeName(newClassification);
@@ -912,43 +1011,64 @@ export default function App() {
       return null;
     }
 
-    if (!classifications.includes(normalizedClassification)) {
-      setClassifications((prev) => [...prev, normalizedClassification]);
+    if (!activeClassifications.includes(normalizedClassification)) {
+      setBoardOptions((prev) => ({
+        ...prev,
+        [activeBoard]: {
+          ...(prev[activeBoard] || {
+            tags: DEFAULT_TAGS,
+            classifications: DEFAULT_CLASSIFICATIONS,
+          }),
+          classifications: uniqueClassifications([
+            ...(prev[activeBoard]?.classifications || DEFAULT_CLASSIFICATIONS),
+            normalizedClassification,
+          ]),
+        },
+      }));
     }
 
     return normalizedClassification;
-  }, [classifications]);
+  }, [activeBoard, activeClassifications]);
 
   const executeDeleteClassification = useCallback(async (classificationToDelete) => {
     const normalizedClassification = normalizeName(classificationToDelete);
 
-    if (!classifications.includes(normalizedClassification)) {
+    if (!activeClassifications.includes(normalizedClassification)) {
       return;
     }
 
-    if (classifications.length <= 1) {
+    if (activeClassifications.length <= 1) {
       alert('至少保留一个分类。');
       return;
     }
 
     const fallbackClassification =
-      classifications.find((classification) => classification !== normalizedClassification) ||
+      activeClassifications.find((classification) => classification !== normalizedClassification) ||
       DEFAULT_CLASSIFICATIONS[0];
 
     const applyLocalClassificationDelete = () => {
-      setClassifications((prev) =>
-        prev.filter((classification) => classification !== normalizedClassification),
-      );
+      setBoardOptions((prev) => ({
+        ...prev,
+        [activeBoard]: {
+          ...(prev[activeBoard] || {
+            tags: DEFAULT_TAGS,
+            classifications: DEFAULT_CLASSIFICATIONS,
+          }),
+          classifications: (prev[activeBoard]?.classifications || DEFAULT_CLASSIFICATIONS).filter(
+            (classification) => classification !== normalizedClassification,
+          ),
+        },
+      }));
       setLinks((prev) =>
         prev.map((link) =>
-          link.category === normalizedClassification
+          link.board === activeBoard && link.category === normalizedClassification
             ? { ...link, category: fallbackClassification }
             : link,
         ),
       );
       setClassificationFilter((prev) => (prev === normalizedClassification ? '全部' : prev));
       setEditingLink((prev) =>
-        prev && prev.category === normalizedClassification
+        prev && prev.board === activeBoard && prev.category === normalizedClassification
           ? { ...prev, category: fallbackClassification }
           : prev,
       );
@@ -965,12 +1085,14 @@ export default function App() {
       return;
     }
 
-    const affectedLinks = links.filter((link) => link.category === normalizedClassification);
+    const affectedLinks = links.filter(
+      (link) => link.board === activeBoard && link.category === normalizedClassification,
+    );
     const updateResults = await Promise.all(
       affectedLinks.map((link) =>
         client
           .from('links')
-          .update({ category: encodeLinkMeta(fallbackClassification, link.tags) })
+          .update({ category: encodeLinkMeta(fallbackClassification, link.tags, link.board) })
           .eq('id', link.id),
       ),
     );
@@ -982,7 +1104,7 @@ export default function App() {
     }
 
     applyLocalClassificationDelete();
-  }, [classifications, links, resolveSupabaseClient, showSupabaseError]);
+  }, [activeBoard, activeClassifications, links, resolveSupabaseClient, showSupabaseError]);
 
   const executeDeleteLink = useCallback(async (linkToDelete) => {
     if (USE_DEMO_MODE) {
@@ -1007,26 +1129,40 @@ export default function App() {
 
   const handleSaveLink = useCallback(async (linkData) => {
     const normalizedTags = uniqueTags(parseTags(linkData.tags));
-    const safeTags = normalizedTags.length > 0 ? normalizedTags : [tags[0] || DEFAULT_TAGS[0]];
+    const safeTags = normalizedTags.length > 0 ? normalizedTags : [activeTags[0] || DEFAULT_TAGS[0]];
     const safeClassification =
-      normalizeName(linkData.category) || classifications[0] || DEFAULT_CLASSIFICATIONS[0];
+      normalizeName(linkData.category) || activeClassifications[0] || DEFAULT_CLASSIFICATIONS[0];
+    const safeBoard = editingLink?.board || activeBoard;
     const normalizedLinkData = {
       ...linkData,
       tags: safeTags,
       category: safeClassification,
+      board: safeBoard,
     };
     const dbPayload = {
       title: normalizedLinkData.title,
       url: normalizedLinkData.url,
-      category: encodeLinkMeta(safeClassification, safeTags),
+      category: encodeLinkMeta(safeClassification, safeTags, safeBoard),
     };
 
     if (editingLink) {
       // Update
       if (USE_DEMO_MODE) {
         setLinks((prev) => prev.map((l) => (l.id === editingLink.id ? { ...l, ...normalizedLinkData } : l)));
-        setTags((prev) => uniqueTags([...prev, ...normalizedLinkData.tags]));
-        setClassifications((prev) => uniqueClassifications([...prev, normalizedLinkData.category]));
+        setBoardOptions((prev) => ({
+          ...prev,
+          [safeBoard]: {
+            ...(prev[safeBoard] || {
+              tags: DEFAULT_TAGS,
+              classifications: DEFAULT_CLASSIFICATIONS,
+            }),
+            tags: uniqueTags([...(prev[safeBoard]?.tags || DEFAULT_TAGS), ...normalizedLinkData.tags]),
+            classifications: uniqueClassifications([
+              ...(prev[safeBoard]?.classifications || DEFAULT_CLASSIFICATIONS),
+              normalizedLinkData.category,
+            ]),
+          },
+        }));
         return true;
       }
 
@@ -1050,8 +1186,20 @@ export default function App() {
       if (data?.[0]) {
         const hydrated = hydrateLink(data[0]);
         setLinks((prev) => prev.map((link) => (link.id === hydrated.id ? hydrated : link)));
-        setTags((prev) => uniqueTags([...prev, ...hydrated.tags]));
-        setClassifications((prev) => uniqueClassifications([...prev, hydrated.category]));
+        setBoardOptions((prev) => ({
+          ...prev,
+          [hydrated.board]: {
+            ...(prev[hydrated.board] || {
+              tags: DEFAULT_TAGS,
+              classifications: DEFAULT_CLASSIFICATIONS,
+            }),
+            tags: uniqueTags([...(prev[hydrated.board]?.tags || DEFAULT_TAGS), ...hydrated.tags]),
+            classifications: uniqueClassifications([
+              ...(prev[hydrated.board]?.classifications || DEFAULT_CLASSIFICATIONS),
+              hydrated.category,
+            ]),
+          },
+        }));
       }
 
       return true;
@@ -1060,8 +1208,20 @@ export default function App() {
       const newLink = { ...normalizedLinkData, id: Date.now() };
       if (USE_DEMO_MODE) {
         setLinks((prev) => [newLink, ...prev]);
-        setTags((prev) => uniqueTags([...prev, ...normalizedLinkData.tags]));
-        setClassifications((prev) => uniqueClassifications([...prev, normalizedLinkData.category]));
+        setBoardOptions((prev) => ({
+          ...prev,
+          [safeBoard]: {
+            ...(prev[safeBoard] || {
+              tags: DEFAULT_TAGS,
+              classifications: DEFAULT_CLASSIFICATIONS,
+            }),
+            tags: uniqueTags([...(prev[safeBoard]?.tags || DEFAULT_TAGS), ...normalizedLinkData.tags]),
+            classifications: uniqueClassifications([
+              ...(prev[safeBoard]?.classifications || DEFAULT_CLASSIFICATIONS),
+              normalizedLinkData.category,
+            ]),
+          },
+        }));
         return true;
       }
 
@@ -1080,15 +1240,27 @@ export default function App() {
       if (data?.[0]) {
         const hydrated = hydrateLink(data[0]);
         setLinks((prev) => [hydrated, ...prev]);
-        setTags((prev) => uniqueTags([...prev, ...hydrated.tags]));
-        setClassifications((prev) => uniqueClassifications([...prev, hydrated.category]));
+        setBoardOptions((prev) => ({
+          ...prev,
+          [hydrated.board]: {
+            ...(prev[hydrated.board] || {
+              tags: DEFAULT_TAGS,
+              classifications: DEFAULT_CLASSIFICATIONS,
+            }),
+            tags: uniqueTags([...(prev[hydrated.board]?.tags || DEFAULT_TAGS), ...hydrated.tags]),
+            classifications: uniqueClassifications([
+              ...(prev[hydrated.board]?.classifications || DEFAULT_CLASSIFICATIONS),
+              hydrated.category,
+            ]),
+          },
+        }));
       }
 
       return true;
     }
 
     return false;
-  }, [classifications, editingLink, resolveSupabaseClient, showSupabaseError, tags]);
+  }, [activeBoard, activeClassifications, activeTags, editingLink, resolveSupabaseClient, showSupabaseError]);
 
   const handleSelectTagFilter = useCallback((nextTag) => {
     startTransition(() => {
@@ -1099,6 +1271,17 @@ export default function App() {
   const handleSelectClassificationFilter = useCallback((nextClassification) => {
     startTransition(() => {
       setClassificationFilter(nextClassification);
+    });
+  }, []);
+
+  const handleSelectBoard = useCallback((nextBoard) => {
+    if (!isKnownBoard(nextBoard)) {
+      return;
+    }
+    startTransition(() => {
+      setActiveBoard(nextBoard);
+      setTagFilter('全部');
+      setClassificationFilter('全部');
     });
   }, []);
 
@@ -1138,12 +1321,13 @@ export default function App() {
 
   const filteredLinks = useMemo(() => {
     return links.filter((link) => {
+      const matchesBoard = link.board === activeBoard;
       const matchesClassification =
         deferredClassificationFilter === '全部' || link.category === deferredClassificationFilter;
       const matchesTag = deferredTagFilter === '全部' || link.tags.includes(deferredTagFilter);
-      return matchesClassification && matchesTag;
+      return matchesBoard && matchesClassification && matchesTag;
     });
-  }, [deferredClassificationFilter, deferredTagFilter, links]);
+  }, [activeBoard, deferredClassificationFilter, deferredTagFilter, links]);
 
   return (
     <div className="min-h-screen bg-gray-50 text-gray-900 font-sans selection:bg-yellow-200 flex flex-col">
@@ -1165,7 +1349,7 @@ export default function App() {
       </nav>
 
       <CategorySidebar
-        classifications={classifications}
+        classifications={activeClassifications}
         activeClassification={classificationFilter}
         onSelectClassification={handleSelectClassificationFilter}
         onDeleteClassification={handleDeleteClassificationRequest}
@@ -1173,9 +1357,26 @@ export default function App() {
 
       <main className="w-full px-6 pt-28 pb-20 flex-grow lg:pl-[18.5rem]">
         <div className="max-w-7xl mx-auto">
+          <div className="mb-6 flex items-center gap-2">
+            {DEFAULT_BOARDS.map((board) => (
+              <button
+                key={board}
+                type="button"
+                onClick={() => handleSelectBoard(board)}
+                className={`px-4 py-2 rounded-full text-sm font-bold transition-all ${
+                  activeBoard === board
+                    ? 'bg-gray-900 text-white'
+                    : 'bg-white text-gray-600 border border-gray-100 hover:border-yellow-200 hover:text-yellow-600'
+                }`}
+              >
+                {board}
+              </button>
+            ))}
+          </div>
+
           <div className="mb-10 text-center sm:text-left">
             <h1 className="text-xl sm:text-2xl font-extrabold text-gray-900 mb-3 tracking-tight">
-              闪链・一键保存优质链接
+              闪链・一键直达优质链接
             </h1>
             <p className="text-gray-500 text-sm sm:text-base max-w-xl">
               极简导航・开放共享
@@ -1193,7 +1394,7 @@ export default function App() {
             >
               #全部
             </button>
-            {tags.map((tag) => (
+            {activeTags.map((tag) => (
               <button
                 key={tag}
                 onClick={() => handleSelectTagFilter(tag)}
@@ -1253,8 +1454,8 @@ export default function App() {
         onClose={handleCloseLinkModal}
         onSave={handleSaveLink}
         initialData={editingLink}
-        tags={tags}
-        classifications={classifications}
+        tags={activeTags}
+        classifications={activeClassifications}
         onAddTag={executeAddTag}
         onDeleteTag={executeDeleteTag}
         onAddClassification={executeAddClassification}
