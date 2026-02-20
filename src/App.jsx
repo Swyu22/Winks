@@ -43,7 +43,7 @@ const getFaviconUrl = (url) => {
 const DEFAULT_TAGS = ['设计', '开发', '工具', '阅读', '灵感'];
 const DEFAULT_CLASSIFICATIONS = ['未分类'];
 const LINK_META_PREFIX = '__WINKS_META__';
-const APP_VERSION = 'v1.1.1';
+const APP_VERSION = 'v1.1.2';
 
 const normalizeName = (value) => String(value || '').replace(/^#+\s*/, '').trim();
 
