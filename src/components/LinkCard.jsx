@@ -1,0 +1,127 @@
+import { memo, useCallback, useState } from 'react';
+import { Copy, Pencil, Trash2 } from 'lucide-react';
+import { formatTag, getFaviconUrl } from '../lib/linkMeta.js';
+
+export const LinkCard = memo(function LinkCard({ link, onEdit, onDelete }) {
+  const [imgError, setImgError] = useState(false);
+  const [copied, setCopied] = useState(false);
+  const favicon = getFaviconUrl(link.url);
+  const handleEdit = useCallback(
+    (e) => {
+      e.preventDefault();
+      onEdit(link);
+    },
+    [link, onEdit],
+  );
+  const handleDelete = useCallback(
+    (e) => {
+      e.preventDefault();
+      onDelete(link);
+    },
+    [link, onDelete],
+  );
+  const handleCopy = useCallback(
+    async (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+
+      try {
+        if (navigator?.clipboard?.writeText) {
+          await navigator.clipboard.writeText(link.url);
+        } else {
+          const textarea = document.createElement('textarea');
+          textarea.value = link.url;
+          textarea.setAttribute('readonly', '');
+          textarea.style.cssText = 'position: fixed; opacity: 0;';
+          document.body.appendChild(textarea);
+          textarea.select();
+          document.execCommand('copy');
+          document.body.removeChild(textarea);
+        }
+        setCopied(true);
+        window.setTimeout(() => setCopied(false), 1200);
+      } catch {
+        alert('复制链接失败，请重试。');
+      }
+    },
+    [link.url],
+  );
+
+  return (
+    <div
+      className="group relative flex flex-col p-6 pb-16 min-h-[10rem] bg-white rounded-2xl border border-gray-100 transition-[border-color,box-shadow,transform] duration-300 hover:-translate-y-1 hover:border-yellow-200 hover:shadow-[0_0_30px_rgba(250,204,21,0.25)]"
+      style={{ contentVisibility: 'auto', containIntrinsicSize: '160px' }}
+    >
+      <div className="absolute top-4 right-4 flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity duration-200 z-10">
+        <button
+          type="button"
+          onClick={handleEdit}
+          aria-label={`编辑链接：${link.title}`}
+          className="p-1.5 bg-gray-100 hover:bg-yellow-400 hover:text-white rounded-lg text-gray-500 transition-colors"
+          title="编辑"
+        >
+          <Pencil aria-hidden="true" className="size-3.5" />
+        </button>
+        <button
+          type="button"
+          onClick={handleDelete}
+          aria-label={`删除链接：${link.title}`}
+          className="p-1.5 bg-gray-100 hover:bg-red-500 hover:text-white rounded-lg text-gray-500 transition-colors"
+          title="删除"
+        >
+          <Trash2 aria-hidden="true" className="size-3.5" />
+        </button>
+      </div>
+
+      <a href={link.url} target="_blank" rel="noopener noreferrer" className="flex-1 flex flex-col">
+        <div className="flex items-start justify-between mb-4">
+          <div className="relative">
+            {!imgError && favicon ? (
+              <img
+                src={favicon}
+                alt={link.title}
+                width={40}
+                height={40}
+                onError={() => setImgError(true)}
+                loading="lazy"
+                decoding="async"
+                className="size-10 rounded-lg object-contain bg-gray-50 p-1"
+              />
+            ) : (
+              <div className="size-10 rounded-lg bg-yellow-100 flex items-center justify-center text-yellow-600 font-bold text-lg">
+                {link.title.charAt(0).toUpperCase()}
+              </div>
+            )}
+          </div>
+        </div>
+
+        <div className="mt-auto">
+          <h3 className="font-semibold text-gray-800 truncate pr-4 text-lg group-hover:text-yellow-600 transition-colors">
+            {link.title}
+          </h3>
+          <div className="mt-2 flex flex-wrap gap-1.5">
+            {link.tags.map((tag) => (
+              <span key={`${link.id}-${tag}`} className="inline-block text-xs font-medium text-gray-400 bg-gray-50 px-2 py-0.5 rounded-full">
+                {formatTag(tag)}
+              </span>
+            ))}
+          </div>
+        </div>
+      </a>
+
+      <button
+        type="button"
+        onClick={handleCopy}
+        className={`absolute left-6 bottom-4 origin-bottom-left scale-[0.65] h-8 px-3 rounded-lg text-xs font-bold border transition-colors flex items-center gap-1 ${
+          copied
+            ? 'bg-green-50 text-green-600 border-green-200'
+            : 'bg-white text-gray-500 border-gray-100 hover:border-yellow-200 hover:text-yellow-600'
+        }`}
+        title="复制链接"
+      >
+        <Copy aria-hidden="true" className="size-3.5" />
+        {copied ? '已复制' : '复制链接'}
+      </button>
+    </div>
+  );
+});

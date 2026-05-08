@@ -23,7 +23,7 @@ npm run dev
 如果你希望数据持久化，请按以下步骤：
 
 1. 在 Supabase 项目中执行 `Supabase/schema.sql` 的 SQL。
-2. 在项目根目录创建 `.env`：
+2. 复制 `.env.example` 为 `.env`，并填写 Supabase 配置：
 
 ```bash
 VITE_SUPABASE_URL=你的项目URL
@@ -46,6 +46,7 @@ VITE_DEMO_MODE=false
 ## 部署到 GitHub Pages
 
 ```bash
+npm test
 npm run build
 npm run deploy
 ```

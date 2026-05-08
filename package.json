@@ -6,6 +6,7 @@
   "homepage": ".",
   "scripts": {
     "dev": "vite --host 127.0.0.1 --port 4173",
+    "test": "node --test src/lib/linkMeta.test.js src/lib/linkActions.test.js",
     "build": "vite build",
     "lint": "eslint .",
     "preview": "vite preview",
