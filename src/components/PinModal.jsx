@@ -53,6 +53,7 @@ export const PinModal = memo(function PinModal({ isOpen, onClose, onSuccess }) {
           <input
             id="admin-pin-input"
             name="admin-pin"
+            aria-label="管理员密码"
             type="password"
             inputMode="numeric"
             maxLength={ADMIN_PIN.length}

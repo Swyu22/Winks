@@ -1,6 +1,6 @@
-# CLAUDE.md — Winks.闪链 项目总纲
+# AGENTS.md — Winks.闪链 项目总纲
 
-> 本文件被 Claude 自动加载为上下文，是跨设备/跨模型协作的「入口」。
+> 本文件被 Codex 自动加载为上下文，是跨设备/跨模型协作的「入口」。
 > **它不重复代码能告诉你的事**，只描述代码以外的约定、约束、协作规则。
 
 ---
@@ -25,7 +25,7 @@ Winks.闪链 —— 开放协作式书签导航站（React + Vite + Supabase + T
 
 ```
 .
-├── CLAUDE.md                    # 本文件——项目总纲，跨会话入口
+├── AGENTS.md                    # 本文件——项目总纲，跨会话入口
 ├── .cloud.md                    # 当前状态快照（活跃模块/未决项/下一步）
 ├── README.md                    # 面向人类的快速上手
 ├── ai/
@@ -58,7 +58,7 @@ Winks.闪链 —— 开放协作式书签导航站（React + Vite + Supabase + T
 
 > 文件系统是**唯一可靠状态源（SSOT）**，不依赖会话记忆。
 
-1. **接手任何任务前**，必须先读：`CLAUDE.md` → `.cloud.md` → 模块 README →（涉及架构时）`docs/00-context/PROJECT_MAP.md` + 相关 spec/ADR。
+1. **接手任何任务前**，必须先读：`AGENTS.md` → `.cloud.md` → 模块 README →（涉及架构时）`docs/00-context/PROJECT_MAP.md` + 相关 spec/ADR。
 2. **改完代码必须回写文档**：
    - 模块职责/依赖/输出变化 → 关键文件头注释 + 模块 README
    - 架构/模块边界变化 → `docs/00-context/PROJECT_MAP.md`
@@ -125,7 +125,7 @@ git config core.hooksPath scripts/git-hooks
 | `VITE_SUPABASE_ANON_KEY` | Supabase Anon Key | Supabase 模式必填 |
 | `VITE_DEMO_MODE` | `true` 时使用内置演示数据，跳过 Supabase | 选填，默认 `false` |
 
-## 10. 给 Claude 的工作偏好
+## 10. 给 Codex 的工作偏好
 
 - 改前先读、读完再说计划、计划确认后再动代码。
 - 输出语言中文，代码注释克制（详见根目录系统提示）。

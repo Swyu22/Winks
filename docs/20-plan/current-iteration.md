@@ -70,6 +70,16 @@
 - [x] 文档同步：`src/README.md`、ADR-0002、`CLAUDE.md` 目录结构、`.cloud.md`
 - [x] 验证：`npm test` 15/15、`npm run lint` 零错误、`npm run build` 通过
 
+### P1-3：Skills 综合审计复跑 ✅ 2026-06-05
+
+- [x] 自动筛选并使用适用 Skills：`code-review` / `security-review` / `insecure-defaults` / `react-doctor` / `javascript-pro` / `frontend-design` / `documentation` / `code-simplifier` / `devex-review` / `qa`
+- [x] 恢复本地依赖安装，修复 `npm run lint` / `npm run build` 找不到本地二进制的问题
+- [x] `npm audit fix` 非破坏性升级 `ws` 到 8.21.0；剩余 Vite/esbuild dev-only 中危需 major 升级确认
+- [x] `LinkModal` 移除打开弹窗时的 prop-sync effect，改为挂载初始化 + 提交时安全派生
+- [x] 补齐按钮 `type` 与无文本输入控件可访问名称
+- [x] 拆出 `MobileCategoryBar`，修复移动端分类条被 fixed 顶栏遮挡的问题
+- [x] 验证：`npm test` 15/15、`npm run lint`、`npm run build`、React Doctor 93 → 98、Playwright 桌面/移动 smoke 通过
+
 ## 4. 待规划（P2）
 
 ### P2-1：PIN 配置化
@@ -81,13 +91,20 @@
 
 - [ ] 调研 Vitest + @testing-library/react 引入成本
 - [x] 优先覆盖 `linkMeta.js` 的纯函数（hydrate / encode / decode）
-- [ ] 继续覆盖 `useLinks` action helpers（需先做 P1 拆分）
+- [x] 覆盖 `useLinks` action helpers 抽出的 `linkActions.js`
+- [ ] 评估 React 组件 / hook 层测试覆盖（特别是 `LinkModal`、PIN 流程、移动分类条）
 
 ### P2-3：Vite major 升级评估
 
 - [ ] 评估 `vite@8` 与 `@vitejs/plugin-react` 兼容性
 - [ ] 在独立分支验证 `npm audit fix --force`
 - [ ] 验证 GitHub Pages 部署产物是否保持 `base: './'`
+
+### P2-4：React Doctor 剩余项
+
+- [ ] 评估 `PinModal` / `LinkModal` 是否迁移到原生 `<dialog>`
+- [ ] 评估 `LinkModal` 多个相关 state 是否改为 `useReducer`
+- [ ] 复核 React Doctor `no-gray-on-colored-background` 是否为可接受的设计误报或需要调色
 
 ## 5. 不在本迭代
 
@@ -107,3 +124,5 @@
 | `useLinks.js` 中 action 函数仍偏长 | 后续协作冲突、测试困难 | P1 拆 action helpers |
 | 组件缺少 React 层测试 | UI 回归只能靠 smoke | P2 评估 Vitest + Testing Library |
 | 外部 favicon 404 噪音 | Playwright 控制台有非业务错误 | 目前不影响页面功能；如需可后续加 favicon fallback 策略 |
+| Vite/esbuild dev-only 中危审计项 | 本地 dev server 在特定条件下有暴露风险 | P2 独立分支验证 Vite major 升级 |
+| 自定义 modal 未迁移 `<dialog>` | 无障碍与浏览器原生焦点管理仍可改进 | P2 独立处理，避免混入本轮审计 |

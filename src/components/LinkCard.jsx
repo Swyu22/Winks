@@ -57,7 +57,7 @@ export const LinkCard = memo(function LinkCard({ link, onEdit, onDelete }) {
           type="button"
           onClick={handleEdit}
           aria-label={`编辑链接：${link.title}`}
-          className="p-1.5 bg-gray-100 hover:bg-yellow-400 hover:text-white rounded-lg text-gray-500 transition-colors"
+          className="p-1.5 bg-white border border-gray-100 hover:bg-yellow-400 hover:text-white rounded-lg text-slate-600 transition-colors"
           title="编辑"
         >
           <Pencil aria-hidden="true" className="size-3.5" />
@@ -66,7 +66,7 @@ export const LinkCard = memo(function LinkCard({ link, onEdit, onDelete }) {
           type="button"
           onClick={handleDelete}
           aria-label={`删除链接：${link.title}`}
-          className="p-1.5 bg-gray-100 hover:bg-red-500 hover:text-white rounded-lg text-gray-500 transition-colors"
+          className="p-1.5 bg-white border border-gray-100 hover:bg-red-500 hover:text-white rounded-lg text-slate-600 transition-colors"
           title="删除"
         >
           <Trash2 aria-hidden="true" className="size-3.5" />

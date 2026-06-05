@@ -49,7 +49,7 @@
 | [src/components/Logo.jsx](../../src/components/Logo.jsx) | 视觉品牌 | 不放业务状态 |
 | [src/components/LinkCard.jsx](../../src/components/LinkCard.jsx) | 链接卡展示、复制链接、触发编辑/删除回调 | 不直接修改 links |
 | [src/components/LinkModal.jsx](../../src/components/LinkModal.jsx) | 新增/编辑表单、标签/分类就地增删入口 | 不直接写数据库 |
-| [src/components/CategorySidebar.jsx](../../src/components/CategorySidebar.jsx) | 桌面侧栏 + 移动端分类切换 | 不持有分类数据源 |
+| [src/components/CategorySidebar.jsx](../../src/components/CategorySidebar.jsx) | 桌面侧栏 + `MobileCategoryBar` 移动端分类切换 | 不持有分类数据源 |
 
 ### 2.4 状态与数据层
 
@@ -97,12 +97,12 @@ LinkModal.onSave → useLinks.handleSaveLink
 
 ```
 src/
-├── App.jsx                    # ≤ 200 行，仅页面编排
+├── App.jsx                    # ≤ 200 行，页面编排 + 移动端分类条挂载位置
 ├── components/
 │   ├── PinModal.jsx
 │   ├── LinkCard.jsx
 │   ├── LinkModal.jsx
-│   ├── CategorySidebar.jsx
+│   ├── CategorySidebar.jsx    # 桌面侧栏 + MobileCategoryBar
 │   └── Logo.jsx
 ├── hooks/
 │   └── useLinks.js            # CRUD + 本地状态 + 筛选

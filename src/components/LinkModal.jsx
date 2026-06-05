@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { Loader2, Plus, X } from 'lucide-react';
 import { DEFAULT_CLASSIFICATIONS, DEFAULT_TAGS } from '../lib/constants.js';
 import { formatTag, normalizeName, normalizeTag, uniqueTags } from '../lib/linkMeta.js';
@@ -15,72 +15,83 @@ export const LinkModal = ({
   onAddClassification,
   onDeleteClassification,
 }) => {
-  const [formData, setFormData] = useState({
+  if (!isOpen) return null;
+
+  return (
+    <LinkModalContent
+      key={initialData?.id || 'create'}
+      onClose={onClose}
+      onSave={onSave}
+      initialData={initialData}
+      tags={tags}
+      classifications={classifications}
+      onAddTag={onAddTag}
+      onDeleteTag={onDeleteTag}
+      onAddClassification={onAddClassification}
+      onDeleteClassification={onDeleteClassification}
+    />
+  );
+};
+
+const createInitialFormData = (initialData, tags, classifications) => {
+  if (initialData) {
+    return {
+      title: initialData.title,
+      url: initialData.url,
+      tags: uniqueTags(initialData.tags),
+      category: normalizeName(initialData.category) || classifications[0] || DEFAULT_CLASSIFICATIONS[0],
+    };
+  }
+
+  return {
     title: '',
     url: '',
-    tags: [DEFAULT_TAGS[0]],
-    category: DEFAULT_CLASSIFICATIONS[0],
-  });
+    tags: [tags[0] || DEFAULT_TAGS[0]],
+    category: classifications[0] || DEFAULT_CLASSIFICATIONS[0],
+  };
+};
+
+const getSafeFormData = (formData, tags, classifications) => {
+  const nextTags = formData.tags.filter((tag) => tags.includes(tag));
+  const safeTags = nextTags.length > 0 ? nextTags : [tags[0] || DEFAULT_TAGS[0]];
+  const safeCategory = classifications.includes(formData.category)
+    ? formData.category
+    : classifications[0] || DEFAULT_CLASSIFICATIONS[0];
+
+  return { ...formData, tags: safeTags, category: safeCategory };
+};
+
+const LinkModalContent = ({
+  onClose,
+  onSave,
+  initialData,
+  tags,
+  classifications,
+  onAddTag,
+  onDeleteTag,
+  onAddClassification,
+  onDeleteClassification,
+}) => {
+  const [formData, setFormData] = useState(() => createInitialFormData(initialData, tags, classifications));
   const [loading, setLoading] = useState(false);
   const [isAddingTag, setIsAddingTag] = useState(false);
   const [newTagName, setNewTagName] = useState('');
   const [isAddingClassification, setIsAddingClassification] = useState(false);
   const [newClassificationName, setNewClassificationName] = useState('');
-
-  useEffect(() => {
-    if (isOpen) {
-      if (initialData) {
-        setFormData({
-          title: initialData.title,
-          url: initialData.url,
-          tags: uniqueTags(initialData.tags),
-          category: normalizeName(initialData.category) || classifications[0] || DEFAULT_CLASSIFICATIONS[0],
-        });
-      } else {
-        setFormData({
-          title: '',
-          url: '',
-          tags: [tags[0] || DEFAULT_TAGS[0]],
-          category: classifications[0] || DEFAULT_CLASSIFICATIONS[0],
-        });
-      }
-      setIsAddingTag(false);
-      setNewTagName('');
-      setIsAddingClassification(false);
-      setNewClassificationName('');
-    }
-  }, [isOpen, initialData]);
-
-  useEffect(() => {
-    if (!isOpen) {
-      return;
-    }
-
-    setFormData((prev) => {
-      const nextTags = prev.tags.filter((tag) => tags.includes(tag));
-      const safeTags = nextTags.length > 0 ? nextTags : [tags[0] || DEFAULT_TAGS[0]];
-      const safeCategory = classifications.includes(prev.category)
-        ? prev.category
-        : classifications[0] || DEFAULT_CLASSIFICATIONS[0];
-
-      return { ...prev, tags: safeTags, category: safeCategory };
-    });
-  }, [tags, classifications, isOpen]);
-
-  if (!isOpen) return null;
+  const safeFormData = getSafeFormData(formData, tags, classifications);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     setLoading(true);
 
-    let finalUrl = formData.url;
+    let finalUrl = safeFormData.url;
     if (!/^https?:\/\//i.test(finalUrl)) {
       finalUrl = `https://${finalUrl}`;
     }
 
     let saved = false;
     try {
-      saved = await onSave({ ...formData, url: finalUrl });
+      saved = await onSave({ ...safeFormData, url: finalUrl });
     } finally {
       setLoading(false);
     }
@@ -92,12 +103,13 @@ export const LinkModal = ({
 
   const toggleTag = (tag) => {
     setFormData((prev) => {
-      const exists = prev.tags.includes(tag);
+      const current = getSafeFormData(prev, tags, classifications);
+      const exists = current.tags.includes(tag);
       if (exists) {
-        const nextTags = prev.tags.filter((item) => item !== tag);
-        return { ...prev, tags: nextTags.length > 0 ? nextTags : prev.tags };
+        const nextTags = current.tags.filter((item) => item !== tag);
+        return { ...current, tags: nextTags.length > 0 ? nextTags : current.tags };
       }
-      return { ...prev, tags: [...prev.tags, tag] };
+      return { ...current, tags: [...current.tags, tag] };
     });
   };
 
@@ -106,7 +118,10 @@ export const LinkModal = ({
     if (!normalizedTag) return;
     const createdTag = onAddTag(normalizedTag);
     if (createdTag) {
-      setFormData((prev) => ({ ...prev, tags: uniqueTags([...prev.tags, createdTag]) }));
+      setFormData((prev) => {
+        const current = getSafeFormData(prev, tags, classifications);
+        return { ...current, tags: uniqueTags([...current.tags, createdTag]) };
+      });
     }
     setIsAddingTag(false);
     setNewTagName('');
@@ -158,7 +173,7 @@ export const LinkModal = ({
               autoComplete="off"
               placeholder="例如：Stripe…"
               className="w-full h-12 px-4 rounded-xl bg-gray-50 border-transparent focus:bg-white focus:border-yellow-400 focus:ring-4 focus:ring-yellow-100 transition-colors outline-none font-medium text-gray-800 placeholder-gray-300"
-              value={formData.title}
+              value={safeFormData.title}
               onChange={(e) => setFormData((prev) => ({ ...prev, title: e.target.value }))}
             />
           </div>
@@ -175,7 +190,7 @@ export const LinkModal = ({
               spellCheck={false}
               placeholder="例如：stripe.com…"
               className="w-full h-12 px-4 rounded-xl bg-gray-50 border-transparent focus:bg-white focus:border-yellow-400 focus:ring-4 focus:ring-yellow-100 transition-colors outline-none font-medium text-gray-800 placeholder-gray-300"
-              value={formData.url}
+              value={safeFormData.url}
               onChange={(e) => setFormData((prev) => ({ ...prev, url: e.target.value }))}
             />
           </div>
@@ -190,7 +205,7 @@ export const LinkModal = ({
                     type="button"
                     onClick={() => setFormData((prev) => ({ ...prev, category: classification }))}
                     className={`h-8 px-3 text-xs font-bold rounded-lg border transition-colors ${
-                      formData.category === classification
+                      safeFormData.category === classification
                         ? 'bg-yellow-400 border-yellow-400 text-white shadow-md'
                         : 'bg-white border-gray-100 text-gray-500 hover:border-yellow-200'
                     }`}
@@ -230,6 +245,7 @@ export const LinkModal = ({
                 <input
                   type="text"
                   name="new-classification"
+                  aria-label="新分类名称"
                   autoComplete="off"
                   placeholder="输入新分类名称…"
                   className="flex-1 h-10 px-3 rounded-lg bg-white border border-yellow-200 focus:ring-2 focus:ring-yellow-100 outline-none text-sm"
@@ -265,7 +281,7 @@ export const LinkModal = ({
                     type="button"
                     onClick={() => toggleTag(tag)}
                     className={`h-8 px-3 text-xs font-bold rounded-lg border transition-colors ${
-                      formData.tags.includes(tag)
+                      safeFormData.tags.includes(tag)
                         ? 'bg-yellow-400 border-yellow-400 text-white shadow-md'
                         : 'bg-white border-gray-100 text-gray-500 hover:border-yellow-200'
                     }`}
@@ -305,6 +321,7 @@ export const LinkModal = ({
                 <input
                   type="text"
                   name="new-tag"
+                  aria-label="新标签名称"
                   autoComplete="off"
                   placeholder="输入新标签名称…"
                   className="flex-1 h-10 px-3 rounded-lg bg-white border border-yellow-200 focus:ring-2 focus:ring-yellow-100 outline-none text-sm"

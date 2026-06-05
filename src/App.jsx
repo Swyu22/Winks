@@ -1,5 +1,5 @@
 import { Loader2, Plus, Search, X } from 'lucide-react';
-import { CategorySidebar } from './components/CategorySidebar.jsx';
+import { CategorySidebar, MobileCategoryBar } from './components/CategorySidebar.jsx';
 import { LinkCard } from './components/LinkCard.jsx';
 import { LinkModal } from './components/LinkModal.jsx';
 import { Logo } from './components/Logo.jsx';
@@ -38,7 +38,7 @@ export default function App() {
   } = useLinks();
 
   return (
-    <div className="min-h-screen bg-gray-50 text-gray-900 font-sans selection:bg-yellow-200 selection:text-yellow-950 flex flex-col">
+    <div className="min-h-screen bg-gray-50 text-slate-900 font-sans selection:bg-yellow-200 selection:text-yellow-950 flex flex-col">
       <nav className="fixed top-0 left-0 right-0 z-40 bg-white/80 backdrop-blur-md border-b border-gray-100">
         <div className="h-20 pl-4 pr-4 sm:pl-6 sm:pr-6 lg:pl-6 lg:pr-8 relative flex items-center justify-between lg:justify-end">
           <div className="lg:absolute lg:left-0 lg:top-1/2 lg:-translate-y-1/2 lg:w-64 lg:flex lg:items-center lg:justify-center">
@@ -67,6 +67,12 @@ export default function App() {
 
       <main className="w-full px-6 pt-28 pb-20 flex-grow lg:pl-[18.5rem]">
         <div className="max-w-7xl mx-auto">
+          <MobileCategoryBar
+            classifications={activeClassifications}
+            activeClassification={classificationFilter}
+            onSelectClassification={handleSelectClassificationFilter}
+          />
+
           <div className="mb-6 flex items-center gap-2">
             {DEFAULT_BOARDS.map((board) => (
               <button
@@ -95,6 +101,7 @@ export default function App() {
 
           <div className="flex flex-wrap items-center gap-2 mb-10 overflow-x-auto pb-3">
             <button
+              type="button"
               onClick={() => handleSelectTagFilter(ALL_FILTER)}
               className={`px-4 py-2 rounded-full text-sm font-bold transition-colors whitespace-nowrap ${
                 tagFilter === ALL_FILTER
@@ -107,6 +114,7 @@ export default function App() {
             {activeTags.map((tag) => (
               <button
                 key={tag}
+                type="button"
                 onClick={() => handleSelectTagFilter(tag)}
                 className={`px-4 py-2 rounded-full text-sm font-bold transition-colors whitespace-nowrap ${
                   tagFilter === tag
