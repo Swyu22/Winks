@@ -121,6 +121,7 @@
 
 | 风险 | 影响 | 缓解 |
 |---|---|---|
+| 私有仓库无法在当前账户方案启用 GitHub Pages | `www.winks.ink` 现有发布可能下线，后续 `npm run deploy` 无法继续生效 | P0：升级 GitHub 方案、恢复仓库 public，或迁移到支持私有仓库的部署平台 |
 | `useLinks.js` 中 action 函数仍偏长 | 后续协作冲突、测试困难 | P1 拆 action helpers |
 | 组件缺少 React 层测试 | UI 回归只能靠 smoke | P2 评估 Vitest + Testing Library |
 | 外部 favicon 404 噪音 | Playwright 控制台有非业务错误 | 目前不影响页面功能；如需可后续加 favicon fallback 策略 |
