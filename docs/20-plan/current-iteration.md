@@ -121,7 +121,17 @@
 - [x] 自托管字体：`@fontsource-variable/{space-grotesk,noto-sans-sc,jetbrains-mono}`，脱离 Google CDN，CJK 按需子集；`font-display` 标题/Logo、`font-mono` 数字
 - [x] 首字母块：`#0052D9` 蓝底 + 白字 + 字号 +30%（text-lg→2xl）
 - [x] 审查修复：新增 `--brand-text #8A6800`（白底金字过 AA，替换低对比 `text-brand-600/500` hover）；PIN 锁图标 `brand-700`；favicon 改 #FFD000 + 近黑闪电；PIN 输入去 mono（中文 placeholder）
-- [x] 验证：`npm test` 18/18、`npm run lint`、`npm run build`；浏览器 DOM+截图（`--brand`=#ffd000、激活态黑配黄、3 套字体已加载、蓝底白字首字母）
+- [x] 验证：`npm test` 18/18、`npm run lint`、`npm run build`；浏览器 DOM+截图（`--brand`=#ffd000、3 套字体已加载、首字母块）
+
+### P1-8：品牌配色改「白配黄」+ 首字母块调整 ✅ 2026-06-26（Claude Opus 4.8）
+
+用户指令：全站不要黄黑配色，改黄白配色（品牌黄底 + 白色图形/白字）；首字母块改品牌黄底 + 白字、字号 21px。
+
+- [x] 全量反转 `bg-brand text-brand-foreground`/`fill-brand-foreground` → `bg-brand text-white`/`fill-white`（按钮/激活态/Logo 闪电/Modal 按钮/编辑按钮 hover）；`public/favicon.svg` 闪电改白
+- [x] 首字母块：`#0052D9` 蓝底 → `bg-brand` 品牌黄底，白字，`text-2xl` → `text-[21px]`
+- [x] `--brand-foreground`（近黑）仅留浅黄底 `brand-200` 选区高亮（白字在浅黄不可读的可读例外）
+- [x] 验证：`npm test` 18/18、lint、build；浏览器 DOM（激活按钮 bg #FFD000 + 白字、首字母块 #FFD000 + 白字 + 21px）+ 截图
+- ⚠ 记录：白字/品牌黄对比度低（≈1.1:1，不过 WCAG），属用户有意品牌选型（见 ADR-0005）
 
 ## 4. 待规划（P2）
 
@@ -148,7 +158,7 @@
 - [x] **2026-06-14** 补齐两个自定义 modal 的 Esc 关闭 + 初始焦点（最小无障碍修复，未迁 `<dialog>`）
 - [ ] 评估 `PinModal` / `LinkModal` 是否迁移到原生 `<dialog>`（含完整 Tab focus-trap）
 - [ ] 评估 `LinkModal` 多个相关 state 是否改为 `useReducer`
-- [x] **2026-06-26 已解决**：WCAG AA 对比度 —— 黑配黄品牌规范落地（`bg-brand text-brand-foreground` ≈13.5:1 取代白字黄底），白底金色 hover 文字改用 `--brand-text`（≈4.7:1 过 AA），见 P1-7 / [ADR-0005](../30-decisions/adr-0005-brand-tokens-and-self-hosted-fonts.md)。剩 `text-gray-400` 次要文字（页脚/空态）仍属可接受的弱化文字
+- [~] WCAG AA 对比度：先以黑配黄解决（≈13.5:1），后 **2026-06-26 用户指令改回「白配黄」**（品牌实底配白字/白图形），白字/黄底对比度低（≈1.1:1）属**有意品牌选型**，见 P1-8 / [ADR-0005](../30-decisions/adr-0005-brand-tokens-and-self-hosted-fonts.md)。白底金色 hover 文字仍用 `--brand-text`（≈4.7:1 过 AA）
 
 ## 5. 不在本迭代
 

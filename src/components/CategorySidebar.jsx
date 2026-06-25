@@ -19,7 +19,7 @@ export const CategorySidebar = memo(function CategorySidebar({
             onClick={() => onSelectClassification(ALL_FILTER)}
             className={`w-full h-10 rounded-lg text-left px-3 text-sm font-bold transition-colors ${
               activeClassification === ALL_FILTER
-                ? 'bg-brand text-brand-foreground shadow-[0_4px_12px_rgba(255,208,0,0.35)]'
+                ? 'bg-brand text-white shadow-[0_4px_12px_rgba(255,208,0,0.35)]'
                 : 'bg-gray-50 text-gray-600 hover:bg-gray-100'
             }`}
           >
@@ -33,7 +33,7 @@ export const CategorySidebar = memo(function CategorySidebar({
                 onClick={() => onSelectClassification(classification)}
                 className={`w-full h-10 rounded-lg text-left px-3 pr-11 text-sm font-bold transition-colors ${
                   activeClassification === classification
-                    ? 'bg-brand text-brand-foreground shadow-[0_4px_12px_rgba(255,208,0,0.35)]'
+                    ? 'bg-brand text-white shadow-[0_4px_12px_rgba(255,208,0,0.35)]'
                     : 'bg-gray-50 text-gray-600 hover:bg-gray-100'
                 }`}
               >
@@ -80,7 +80,7 @@ export const MobileCategoryBar = memo(function MobileCategoryBar({
           onClick={() => onSelectClassification(ALL_FILTER)}
           className={`px-3 py-1.5 rounded-full text-xs font-bold whitespace-nowrap transition-colors ${
             activeClassification === ALL_FILTER
-              ? 'bg-brand text-brand-foreground'
+              ? 'bg-brand text-white'
               : 'bg-white text-gray-600 border border-gray-100'
           }`}
         >
@@ -93,7 +93,7 @@ export const MobileCategoryBar = memo(function MobileCategoryBar({
             onClick={() => onSelectClassification(classification)}
             className={`px-3 py-1.5 rounded-full text-xs font-bold whitespace-nowrap transition-colors ${
               activeClassification === classification
-                ? 'bg-brand text-brand-foreground'
+                ? 'bg-brand text-white'
                 : 'bg-white text-gray-600 border border-gray-100'
             }`}
           >

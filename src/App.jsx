@@ -108,7 +108,7 @@ export default function App() {
               onClick={() => handleSelectTagFilter(ALL_FILTER)}
               className={`px-4 py-2 rounded-full text-sm font-bold transition-colors whitespace-nowrap ${
                 tagFilter === ALL_FILTER
-                  ? 'bg-brand text-brand-foreground shadow-[0_4px_15px_rgba(255,208,0,0.4)]'
+                  ? 'bg-brand text-white shadow-[0_4px_15px_rgba(255,208,0,0.4)]'
                   : 'bg-white text-gray-500 border border-gray-100 hover:border-brand-200 hover:text-brand-text'
               }`}
             >
@@ -121,7 +121,7 @@ export default function App() {
                 onClick={() => handleSelectTagFilter(tag)}
                 className={`px-4 py-2 rounded-full text-sm font-bold transition-colors whitespace-nowrap ${
                   tagFilter === tag
-                    ? 'bg-brand text-brand-foreground shadow-[0_4px_15px_rgba(255,208,0,0.4)]'
+                    ? 'bg-brand text-white shadow-[0_4px_15px_rgba(255,208,0,0.4)]'
                     : 'bg-white text-gray-500 border border-gray-100 hover:border-brand-200 hover:text-brand-text'
                 }`}
               >

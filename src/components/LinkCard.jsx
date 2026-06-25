@@ -94,7 +94,7 @@ export const LinkCard = memo(function LinkCard({ link, onEdit, onDelete, onOpen 
           type="button"
           onClick={handleEdit}
           aria-label={`编辑链接：${link.title}`}
-          className="p-1.5 bg-white border border-gray-100 hover:bg-brand hover:text-brand-foreground rounded-lg text-slate-600 transition-colors"
+          className="p-1.5 bg-white border border-gray-100 hover:bg-brand hover:text-white rounded-lg text-slate-600 transition-colors"
           title="编辑"
         >
           <Pencil aria-hidden="true" className="size-3.5" />
@@ -133,7 +133,7 @@ export const LinkCard = memo(function LinkCard({ link, onEdit, onDelete, onOpen 
                 className="size-10 rounded-lg object-contain bg-gray-50 p-1"
               />
             ) : (
-              <div className="size-10 rounded-lg bg-[#0052D9] flex items-center justify-center font-bold text-2xl text-white">
+              <div className="size-10 rounded-lg bg-brand flex items-center justify-center font-bold text-[21px] text-white">
                 {link.title.charAt(0).toUpperCase()}
               </div>
             )}

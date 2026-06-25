@@ -17,7 +17,7 @@
   --brand-600: #d9a400;
   --brand-700: #a87e00;
   --brand: var(--brand-400);
-  --brand-foreground: #09090b; /* 黄底上的文字色（近黑）——品牌是黑配黄，黄底永远配深字 */
+  --brand-foreground: #09090b; /* 近黑——仅用于浅黄底（brand-200）选区高亮的可读文字；品牌实底（#FFD000）现配白色，见 ADR-0005 */
   --brand-muted: var(--brand-100);
   --brand-text: #8a6800; /* 白底上可用的金色文字（强调/hover 态）——过 WCAG AA（≈4.7:1）；品牌黄本身在白底对比不足 */
 

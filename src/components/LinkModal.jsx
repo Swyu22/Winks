@@ -210,7 +210,7 @@ const LinkModalContent = ({
                     onClick={() => setFormData((prev) => ({ ...prev, category: classification }))}
                     className={`h-8 px-3 text-xs font-bold rounded-lg border transition-colors ${
                       safeFormData.category === classification
-                        ? 'bg-brand border-brand text-brand-foreground shadow-md'
+                        ? 'bg-brand border-brand text-white shadow-md'
                         : 'bg-white border-gray-100 text-gray-500 hover:border-brand-200'
                     }`}
                   >
@@ -259,7 +259,7 @@ const LinkModalContent = ({
                 <button
                   type="button"
                   onClick={handleCreateClassification}
-                  className="h-10 px-4 bg-brand text-brand-foreground rounded-lg text-sm font-bold hover:shadow-lg"
+                  className="h-10 px-4 bg-brand text-white rounded-lg text-sm font-bold hover:shadow-lg"
                 >
                   确认
                 </button>
@@ -286,7 +286,7 @@ const LinkModalContent = ({
                     onClick={() => toggleTag(tag)}
                     className={`h-8 px-3 text-xs font-bold rounded-lg border transition-colors ${
                       safeFormData.tags.includes(tag)
-                        ? 'bg-brand border-brand text-brand-foreground shadow-md'
+                        ? 'bg-brand border-brand text-white shadow-md'
                         : 'bg-white border-gray-100 text-gray-500 hover:border-brand-200'
                     }`}
                   >
@@ -335,7 +335,7 @@ const LinkModalContent = ({
                 <button
                   type="button"
                   onClick={handleCreateTag}
-                  className="h-10 px-4 bg-brand text-brand-foreground rounded-lg text-sm font-bold hover:shadow-lg"
+                  className="h-10 px-4 bg-brand text-white rounded-lg text-sm font-bold hover:shadow-lg"
                 >
                   确认
                 </button>
