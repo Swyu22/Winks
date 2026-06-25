@@ -74,10 +74,14 @@ test('builds board-local tag and classification options', () => {
 test('falls back to defaults for empty derived options and invalid favicons', () => {
   assert.deepEqual(buildBoardOptionsFromLinks([])['网站'].tags, DEFAULT_TAGS);
   assert.deepEqual(getFaviconCandidates('not a url'), []);
-  assert.deepEqual(getFaviconCandidates('https://example.com/path'), [
-    'https://t1.gstatic.com/faviconV2?client=SOCIAL&type=FAVICON&fallback_opts=TYPE,SIZE,URL&size=128&url=https%3A%2F%2Fexample.com',
-    'https://example.com/favicon.ico',
-  ]);
+  assert.deepEqual(
+    getFaviconCandidates('https://example.com/path').map((c) => c.url),
+    [
+      'https://example.com/icon.svg',
+      'https://example.com/favicon.ico',
+      'https://t1.gstatic.com/faviconV2?client=SOCIAL&type=FAVICON&fallback_opts=TYPE,SIZE,URL&size=128&url=https%3A%2F%2Fexample.com',
+    ],
+  );
 });
 
 test('hydrateLink carries a numeric clicks counter (defaulting to 0)', () => {

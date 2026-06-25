@@ -7,40 +7,37 @@ export const LinkCard = memo(function LinkCard({ link, onEdit, onDelete, onOpen 
   const [copied, setCopied] = useState(false);
   const imgRef = useRef(null);
   const candidates = useMemo(() => getFaviconCandidates(link.url), [link.url]);
-  const favicon = candidates[iconIdx];
+  const current = candidates[iconIdx];
+  const favicon = current?.url;
   // Card instances are keyed by link.id, so editing a link's URL reuses the instance;
   // restart the favicon source cascade when the URL changes.
   useEffect(() => {
     setIconIdx(0);
   }, [link.url]);
-  // Per-source timeout: a hung favicon URL (some sites' /favicon.ico accepts the connection
-  // but never responds) fires neither load nor error, which would stall the cascade — and the
-  // letter-avatar fallback — indefinitely. The budget is generous so it only rescues true
-  // hangs and doesn't cut off icons that are merely slow (e.g. a larger multi-res .ico under
-  // concurrent first-paint load).
+  // Per-source timeout: a source that hangs (or 404s slowly) fires load/error too late, which
+  // would stall the cascade — and the letter-avatar fallback. Each candidate carries its own
+  // budget (short for the quick /icon.svg probe, generous for the reliable services) so a slow
+  // source falls through fast without cutting off a merely-slow real icon.
   useEffect(() => {
-    if (!favicon) return undefined;
+    if (!current) return undefined;
     const timer = setTimeout(() => {
       const img = imgRef.current;
       if (img && !(img.complete && img.naturalWidth > 0)) setIconIdx((i) => i + 1);
-    }, 6000);
+    }, current.timeout);
     return () => clearTimeout(timer);
-  }, [favicon]);
+  }, [current]);
   const handleOpen = useCallback(() => {
     onOpen?.(link);
   }, [link, onOpen]);
-  // onError = the source failed to load at all (e.g. gstatic unreachable) → try the next
-  // candidate (the resilience /favicon.ico).
+  // onError = the source failed to load at all (404/non-image/unreachable) → try the next.
   const handleIconError = useCallback(() => setIconIdx((i) => i + 1), []);
-  // A favicon service answers a miss with a tiny (~16px) placeholder via a 200/404 image body —
-  // which fires load, not error, and would otherwise stick. A site with no icon discoverable by
-  // the service won't be found by the remaining services either, so drop straight to the letter
-  // avatar (skip to candidates.length). The site's own /favicon.ico is excluded — it may
-  // legitimately be 16px.
+  // faviconV2 answers a miss with a tiny (~16px) placeholder via a 200/404 image body — which
+  // fires load, not error, and would otherwise stick. A site with no icon discoverable by it
+  // has none we can fetch, so drop straight to the letter avatar (skip remaining candidates).
   const handleIconLoad = useCallback(
     (e) => {
-      const isServiceIcon = favicon && !favicon.endsWith('/favicon.ico');
-      if (isServiceIcon && e.currentTarget.naturalWidth > 0 && e.currentTarget.naturalWidth <= 16) {
+      const isFaviconV2 = favicon && favicon.includes('faviconV2');
+      if (isFaviconV2 && e.currentTarget.naturalWidth > 0 && e.currentTarget.naturalWidth <= 16) {
         setIconIdx(candidates.length);
       }
     },
@@ -136,7 +133,7 @@ export const LinkCard = memo(function LinkCard({ link, onEdit, onDelete, onOpen 
                 className="size-10 rounded-lg object-contain bg-gray-50 p-1"
               />
             ) : (
-              <div className="size-10 rounded-lg bg-yellow-100 flex items-center justify-center text-yellow-600 font-bold text-lg">
+              <div className="size-10 rounded-lg bg-white flex items-center justify-center font-bold text-lg text-[#0052D9]">
                 {link.title.charAt(0).toUpperCase()}
               </div>
             )}

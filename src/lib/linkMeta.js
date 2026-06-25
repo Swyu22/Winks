@@ -6,21 +6,28 @@ import {
 } from './constants.js';
 
 // Keep this transport contract in sync with docs/10-spec/data-model.md.
-// Favicon sources LinkCard tries before the branded letter-avatar fallback:
-//   [0] Google faviconV2 — resolves the site's DECLARED icon (<link rel=icon>, incl. SVG and
-//       cache-busted query paths) and falls back to /favicon.ico. Far better coverage than the
-//       old s2 endpoint, and a CDN that responds fast instead of hanging like some origins'
-//       own /favicon.ico. A miss returns a tiny (16px) placeholder — LinkCard's onLoad
-//       heuristic detects that and drops straight to the letter avatar.
-//   [1] Direct /favicon.ico — a resilience fallback reached only if faviconV2 fails to LOAD
-//       (e.g. gstatic unreachable), not on a placeholder miss, so a hanging origin can't stall
-//       the common path.
+// Ordered favicon sources ({ url, timeout }) LinkCard tries before the letter-avatar fallback.
+// ORIGIN-FIRST by design: a grid of many cards hitting ONE favicon service (Google faviconV2,
+// s2, DuckDuckGo) gets rate-limited under the burst — the service returns 16px placeholders for
+// real sites, so coverage collapses. Fetching each site's OWN icon spreads the load across many
+// hosts (no single-service throttle) and is the most authentic; only the few sites that miss
+// both fall back to the shared service, keeping its request volume low enough to stay reliable.
+//   [0] /icon.svg   — the site's declared vector icon (modern convention); crisp, full-bleed,
+//                     faithful (no server-side raster with wrong fonts). Fast 404 if absent.
+//   [1] /favicon.ico — the traditional origin icon. Short-ish timeout so a hung origin (some SPAs
+//                     accept the connection but never respond) falls through instead of stalling.
+//   [2] faviconV2   — shared resolver fallback for sites with neither; a miss returns a 16px
+//                     placeholder that LinkCard's onLoad heuristic turns into the letter avatar.
 export const getFaviconCandidates = (url) => {
   try {
     const { origin } = new URL(url);
     return [
-      `https://t1.gstatic.com/faviconV2?client=SOCIAL&type=FAVICON&fallback_opts=TYPE,SIZE,URL&size=128&url=${encodeURIComponent(origin)}`,
-      `${origin}/favicon.ico`,
+      { url: `${origin}/icon.svg`, timeout: 2000 },
+      { url: `${origin}/favicon.ico`, timeout: 3000 },
+      {
+        url: `https://t1.gstatic.com/faviconV2?client=SOCIAL&type=FAVICON&fallback_opts=TYPE,SIZE,URL&size=128&url=${encodeURIComponent(origin)}`,
+        timeout: 6000,
+      },
     ];
   } catch {
     return [];
