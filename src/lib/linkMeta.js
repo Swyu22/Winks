@@ -6,21 +6,21 @@ import {
 } from './constants.js';
 
 // Keep this transport contract in sync with docs/10-spec/data-model.md.
-// Ordered favicon sources, tried in turn by LinkCard's onError cascade before the
-// letter-avatar fallback. Direct /favicon.ico FIRST: it is the site's authentic icon,
-// reachable wherever the site itself is (incl. mainland China), and a real miss returns
-// 404 so onError cleanly advances the cascade. Google s2 is the crawled-coverage
-// fallback for sites without a root /favicon.ico — but it must NOT be first, because for
-// domains it hasn't crawled it returns a generic globe with HTTP 200 (which never fires
-// onError, so the cascade would stick on it and never reach the working direct icon).
-// DuckDuckGo is a final independent fallback.
+// Favicon sources LinkCard tries before the branded letter-avatar fallback:
+//   [0] Google faviconV2 — resolves the site's DECLARED icon (<link rel=icon>, incl. SVG and
+//       cache-busted query paths) and falls back to /favicon.ico. Far better coverage than the
+//       old s2 endpoint, and a CDN that responds fast instead of hanging like some origins'
+//       own /favicon.ico. A miss returns a tiny (16px) placeholder — LinkCard's onLoad
+//       heuristic detects that and drops straight to the letter avatar.
+//   [1] Direct /favicon.ico — a resilience fallback reached only if faviconV2 fails to LOAD
+//       (e.g. gstatic unreachable), not on a placeholder miss, so a hanging origin can't stall
+//       the common path.
 export const getFaviconCandidates = (url) => {
   try {
-    const { hostname, origin } = new URL(url);
+    const { origin } = new URL(url);
     return [
+      `https://t1.gstatic.com/faviconV2?client=SOCIAL&type=FAVICON&fallback_opts=TYPE,SIZE,URL&size=128&url=${encodeURIComponent(origin)}`,
       `${origin}/favicon.ico`,
-      `https://www.google.com/s2/favicons?domain=${hostname}&sz=128`,
-      `https://icons.duckduckgo.com/ip3/${hostname}.ico`,
     ];
   } catch {
     return [];

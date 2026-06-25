@@ -1,10 +1,11 @@
-import { memo, useCallback, useEffect, useMemo, useState } from 'react';
+import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Copy, Pencil, Trash2 } from 'lucide-react';
 import { formatTag, getFaviconCandidates, toSafeHref } from '../lib/linkMeta.js';
 
 export const LinkCard = memo(function LinkCard({ link, onEdit, onDelete, onOpen }) {
   const [iconIdx, setIconIdx] = useState(0);
   const [copied, setCopied] = useState(false);
+  const imgRef = useRef(null);
   const candidates = useMemo(() => getFaviconCandidates(link.url), [link.url]);
   const favicon = candidates[iconIdx];
   // Card instances are keyed by link.id, so editing a link's URL reuses the instance;
@@ -12,9 +13,39 @@ export const LinkCard = memo(function LinkCard({ link, onEdit, onDelete, onOpen 
   useEffect(() => {
     setIconIdx(0);
   }, [link.url]);
+  // Per-source timeout: a hung favicon URL (some sites' /favicon.ico accepts the connection
+  // but never responds) fires neither load nor error, which would stall the cascade — and the
+  // letter-avatar fallback — indefinitely. The budget is generous so it only rescues true
+  // hangs and doesn't cut off icons that are merely slow (e.g. a larger multi-res .ico under
+  // concurrent first-paint load).
+  useEffect(() => {
+    if (!favicon) return undefined;
+    const timer = setTimeout(() => {
+      const img = imgRef.current;
+      if (img && !(img.complete && img.naturalWidth > 0)) setIconIdx((i) => i + 1);
+    }, 6000);
+    return () => clearTimeout(timer);
+  }, [favicon]);
   const handleOpen = useCallback(() => {
     onOpen?.(link);
   }, [link, onOpen]);
+  // onError = the source failed to load at all (e.g. gstatic unreachable) → try the next
+  // candidate (the resilience /favicon.ico).
+  const handleIconError = useCallback(() => setIconIdx((i) => i + 1), []);
+  // A favicon service answers a miss with a tiny (~16px) placeholder via a 200/404 image body —
+  // which fires load, not error, and would otherwise stick. A site with no icon discoverable by
+  // the service won't be found by the remaining services either, so drop straight to the letter
+  // avatar (skip to candidates.length). The site's own /favicon.ico is excluded — it may
+  // legitimately be 16px.
+  const handleIconLoad = useCallback(
+    (e) => {
+      const isServiceIcon = favicon && !favicon.endsWith('/favicon.ico');
+      if (isServiceIcon && e.currentTarget.naturalWidth > 0 && e.currentTarget.naturalWidth <= 16) {
+        setIconIdx(candidates.length);
+      }
+    },
+    [favicon, candidates.length],
+  );
   const handleEdit = useCallback(
     (e) => {
       e.preventDefault();
@@ -93,11 +124,13 @@ export const LinkCard = memo(function LinkCard({ link, onEdit, onDelete, onOpen 
           <div className="relative">
             {favicon ? (
               <img
+                ref={imgRef}
                 src={favicon}
                 alt={link.title}
                 width={40}
                 height={40}
-                onError={() => setIconIdx((i) => i + 1)}
+                onError={handleIconError}
+                onLoad={handleIconLoad}
                 loading="lazy"
                 decoding="async"
                 className="size-10 rounded-lg object-contain bg-gray-50 p-1"
