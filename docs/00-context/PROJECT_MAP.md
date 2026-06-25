@@ -47,31 +47,42 @@
 |---|---|---|
 | [src/components/PinModal.jsx](../../src/components/PinModal.jsx) | PIN 输入 + 校验（硬编码 `5185`） | 不调用 Supabase；不把 PIN 当强安全 |
 | [src/components/Logo.jsx](../../src/components/Logo.jsx) | 视觉品牌 | 不放业务状态 |
-| [src/components/LinkCard.jsx](../../src/components/LinkCard.jsx) | 链接卡展示、复制链接、触发编辑/删除回调 | 不直接修改 links |
+| [src/components/LinkCard.jsx](../../src/components/LinkCard.jsx) | 链接卡展示、favicon 多源级联、复制链接、触发编辑/删除回调、打开时回调 `onOpen`（点击计数） | 不直接修改 links |
 | [src/components/LinkModal.jsx](../../src/components/LinkModal.jsx) | 新增/编辑表单、标签/分类就地增删入口 | 不直接写数据库 |
-| [src/components/CategorySidebar.jsx](../../src/components/CategorySidebar.jsx) | 桌面侧栏 + `MobileCategoryBar` 移动端分类切换 | 不持有分类数据源 |
+| [src/components/CategorySidebar.jsx](../../src/components/CategorySidebar.jsx) | 桌面侧栏 + `MobileCategoryBar` 移动端分类切换（渲染 `displayClassifications`，未分类置底） | 不持有分类数据源 |
+| [src/components/LinkGridSkeleton.jsx](../../src/components/LinkGridSkeleton.jsx) | 首屏加载骨架（镜像 LinkCard 盒型，替代裸 spinner） | 不放业务状态 |
 
 ### 2.4 状态与数据层
 
 | 文件 | 职责 |
 |---|---|
-| [src/hooks/useLinks.js](../../src/hooks/useLinks.js) | links / boardOptions / filters / modal state；Supabase CRUD；PIN 流程编排。内部 `runBatchUpdate` / `runSingleMutation` 负责 demo/Supabase 分支 |
-| [src/lib/constants.js](../../src/lib/constants.js) | `DEFAULT_*`、`LINK_META_PREFIX`、`APP_VERSION`、`USE_DEMO_MODE`、`ADMIN_PIN`、`ALL_FILTER`、`PIN_ACTIONS` |
-| [src/lib/linkMeta.js](../../src/lib/linkMeta.js) | `encodeLinkMeta` / `decodeLinkMeta` / `hydrateLink` / tag/classification/board 归一化 |
+| [src/hooks/useLinks.js](../../src/hooks/useLinks.js) | links / boardOptions / filters / modal state；Supabase CRUD；PIN 流程编排；localStorage SWR 缓存（秒出 + 后台 revalidate）；`handleOpenLink` 点击计数（乐观自增 + `persistClick` 容错持久化）；`filteredLinks` 按 clicks 降序排序。内部 `runBatchUpdate` / `runSingleMutation` 负责 demo/Supabase 分支 |
+| [src/lib/constants.js](../../src/lib/constants.js) | `DEFAULT_*`、`LINK_META_PREFIX`、`APP_VERSION`、`USE_DEMO_MODE`、`ADMIN_PIN`、`ALL_FILTER`、`PIN_ACTIONS`、`LINKS_CACHE_KEY` |
+| [src/lib/linkMeta.js](../../src/lib/linkMeta.js) | `encodeLinkMeta` / `decodeLinkMeta` / `hydrateLink`（含 clicks 兜底）/ tag/classification/board 归一化 / `getFaviconCandidates`（多源）/ `sortClassificationsUncategorizedLast`（未分类置底） |
 | [src/lib/linkActions.js](../../src/lib/linkActions.js) | 纯函数：`applyTagDeleteLocally` / `applyClassificationDeleteLocally` / `normalizeSaveLinkData` / `getBoardOption` / `withBoardValues`。可被 Node 测试 |
-| [src/lib/supabaseClient.js](../../src/lib/supabaseClient.js) | 单例懒加载 Supabase client；`getSupabaseInitError()` 用于 UI 显式错误 |
-| [Supabase/schema.sql](../../Supabase/schema.sql) | `links` 表 schema + 完全开放的 RLS 策略 |
+| [src/lib/supabaseClient.js](../../src/lib/supabaseClient.js) | 单例懒加载 Supabase client；模块加载即 `warmSupabase()`（preconnect + 预拉 SDK chunk，与 React 挂载并行）；`getSupabaseInitError()` 用于 UI 显式错误 |
+| [Supabase/schema.sql](../../Supabase/schema.sql) | `links` 表 schema（含 `clicks` 列 + 索引）+ 完全开放的 RLS 策略 |
 
 ## 3. 数据流（典型路径）
 
-### 3.1 加载（fetch）
+### 3.1 加载（fetch，stale-while-revalidate）
 
 ```
-useLinks.useEffect → fetchLinks
-  → resolveSupabaseClient（demo 跳过）
-  → client.from('links').select().order('created_at', desc)
-  → data.map(hydrateLink)        ← 解析 __WINKS_META__ 前缀
+useState 初始化 → readLinksCache()（命中则秒出缓存内容，loading=false）
+useLinks.useEffect → fetchLinks（不再 setLoading(true)，避免覆盖已渲染内容）
+  → resolveSupabaseClient（demo 跳过；客户端已被 supabaseClient 模块预热）
+  → client.from('links').select('*').order('created_at', desc)
+  → data.map(hydrateLink)        ← 解析 __WINKS_META__ 前缀 + clicks 兜底
   → setLinks + setBoardOptions(buildBoardOptionsFromLinks(...))
+  → writeLinksCache(links)（effect 监听 links 变更回写缓存）
+```
+
+### 3.1b 打开链接（点击计数）
+
+```
+LinkCard <a onClick> → onOpen(link) → useLinks.handleOpenLink
+  → 乐观 setLinks（clicks+1）→ filteredLinks 重排
+  → persistClick(link)：fire-and-forget update({clicks})（非 PIN；列缺失则静默降级）
 ```
 
 ### 3.2 写入（insert / update）

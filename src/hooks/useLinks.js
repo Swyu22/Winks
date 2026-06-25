@@ -12,6 +12,7 @@ import {
   DEFAULT_BOARDS,
   DEFAULT_CLASSIFICATIONS,
   DEFAULT_TAGS,
+  LINKS_CACHE_KEY,
   PIN_ACTIONS,
   USE_DEMO_MODE,
 } from '../lib/constants.js';
@@ -23,6 +24,7 @@ import {
   isKnownBoard,
   normalizeName,
   normalizeTag,
+  sortClassificationsUncategorizedLast,
 } from '../lib/linkMeta.js';
 import {
   applyClassificationDeleteLocally,
@@ -35,46 +37,81 @@ import {
 // Link state and Supabase CRUD orchestration live here; UI components stay data-source agnostic.
 const supabaseInitError = getSupabaseInitError(USE_DEMO_MODE);
 
+// Stale-while-revalidate cache: paint the last-known links instantly on repeat visits,
+// then revalidate from Supabase in the background. Cached values are already-hydrated
+// links (clicks included). No-op in demo mode or when localStorage is unavailable.
+const readLinksCache = () => {
+  if (USE_DEMO_MODE || typeof localStorage === 'undefined') return null;
+  try {
+    const parsed = JSON.parse(localStorage.getItem(LINKS_CACHE_KEY));
+    if (!Array.isArray(parsed) || parsed.length === 0) return null;
+    // hydrateLink is idempotent on already-hydrated rows; re-running it keeps the
+    // "every read path goes through hydrateLink" invariant even for cached data.
+    return parsed.map(hydrateLink);
+  } catch {
+    return null;
+  }
+};
+
+const writeLinksCache = (links) => {
+  if (USE_DEMO_MODE || typeof localStorage === 'undefined' || links.length === 0) return;
+  try {
+    localStorage.setItem(LINKS_CACHE_KEY, JSON.stringify(links));
+  } catch {
+    // quota / serialization errors are non-fatal for a cache
+  }
+};
+
 const createDemoLinks = () => [
   {
     id: 1,
     title: 'Supabase',
     url: 'https://supabase.com',
     category: encodeLinkMeta('开发', ['开发', '工具']),
+    clicks: 42,
   },
   {
     id: 2,
     title: 'Tailwind CSS',
     url: 'https://tailwindcss.com',
     category: encodeLinkMeta('开发', ['开发', '设计']),
+    clicks: 17,
   },
   {
     id: 3,
     title: 'Dribbble',
     url: 'https://dribbble.com',
     category: encodeLinkMeta('设计', ['设计', '灵感']),
+    clicks: 88,
   },
   {
     id: 4,
     title: 'Framer',
     url: 'https://framer.com',
     category: encodeLinkMeta('设计', ['设计', '工具']),
+    clicks: 5,
   },
   {
     id: 5,
     title: 'Linear',
     url: 'https://linear.app',
     category: encodeLinkMeta('工具', ['工具']),
+    clicks: 23,
   },
 ];
 
 export const useLinks = () => {
-  const [links, setLinks] = useState([]);
+  // Prime from the SWR cache so repeat visits render real content immediately
+  // instead of a spinner; fetchLinks still revalidates and stays authoritative.
+  const [links, setLinks] = useState(() => readLinksCache() ?? []);
   const [activeBoard, setActiveBoard] = useState(DEFAULT_BOARDS[0]);
-  const [boardOptions, setBoardOptions] = useState(createDefaultBoardOptions);
+  const [boardOptions, setBoardOptions] = useState(() => {
+    const cached = readLinksCache();
+    return cached ? buildBoardOptionsFromLinks(cached) : createDefaultBoardOptions();
+  });
   const [tagFilter, setTagFilter] = useState(ALL_FILTER);
   const [classificationFilter, setClassificationFilter] = useState(ALL_FILTER);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(() => readLinksCache() === null);
   const [fatalError, setFatalError] = useState(supabaseInitError);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingLink, setEditingLink] = useState(null);
@@ -83,7 +120,14 @@ export const useLinks = () => {
 
   const activeOptions = getBoardOption(boardOptions, activeBoard);
   const activeTags = activeOptions.tags;
+  // activeClassifications keeps 未分类 FIRST — it feeds business logic (delete-classification
+  // orphan fallback, new-link default category). displayClassifications forces 未分类 LAST and is
+  // used ONLY for sidebar rendering, so the "未分类 置底" rule never leaks into that logic.
   const activeClassifications = activeOptions.classifications;
+  const displayClassifications = useMemo(
+    () => sortClassificationsUncategorizedLast(activeClassifications),
+    [activeClassifications],
+  );
   const deferredTagFilter = useDeferredValue(tagFilter);
   const deferredClassificationFilter = useDeferredValue(classificationFilter);
 
@@ -110,8 +154,9 @@ export const useLinks = () => {
   );
 
   const fetchLinks = useCallback(async () => {
-    setLoading(true);
-
+    // No setLoading(true) here: initial loading is seeded from the cache presence, and
+    // background revalidation / post-mutation resyncs must not flash a spinner over
+    // already-rendered content.
     if (USE_DEMO_MODE) {
       const normalizedLinks = createDemoLinks().map((link) => hydrateLink(link));
       setLinks(normalizedLinks);
@@ -154,6 +199,11 @@ export const useLinks = () => {
   useEffect(() => {
     void fetchLinks();
   }, [fetchLinks]);
+
+  // Persist the latest links (including click bumps and edits) to the SWR cache.
+  useEffect(() => {
+    writeLinksCache(links);
+  }, [links]);
 
   // On partial failure (some rows succeeded remotely, others didn't), we resync via fetchLinks
   // rather than mutating local from a partial set — keeping the UI authoritative on the server.
@@ -220,6 +270,34 @@ export const useLinks = () => {
     setPendingAction(action);
     setIsPinOpen(true);
   }, []);
+
+  // Best-effort, fire-and-forget click persistence. A public (non-PIN) action under the
+  // open RLS model; tolerant if the `clicks` column hasn't been added yet so opening a
+  // link never breaks. Read-modify-write race is acceptable per ADR-0002 threat model.
+  const persistClick = useCallback(async (link) => {
+    if (USE_DEMO_MODE) return;
+    try {
+      const client = await getSupabaseClient({ useDemoMode: USE_DEMO_MODE });
+      if (!client) return;
+      const { error } = await client
+        .from('links')
+        .update({ clicks: (link.clicks || 0) + 1 })
+        .eq('id', link.id);
+      if (error) console.warn('点击计数持久化失败:', error.message);
+    } catch (error) {
+      console.warn('点击计数持久化失败:', error?.message || error);
+    }
+  }, []);
+
+  const handleOpenLink = useCallback(
+    (link) => {
+      setLinks((prev) =>
+        prev.map((l) => (l.id === link.id ? { ...l, clicks: (l.clicks || 0) + 1 } : l)),
+      );
+      void persistClick(link);
+    },
+    [persistClick],
+  );
 
   const applySavedLinkOptions = useCallback((link) => {
     setBoardOptions((prev) =>
@@ -472,12 +550,22 @@ export const useLinks = () => {
   }, []);
 
   const filteredLinks = useMemo(() => {
-    return links.filter((link) => {
+    const matches = links.filter((link) => {
       const matchesBoard = link.board === activeBoard;
       const matchesClassification =
         deferredClassificationFilter === ALL_FILTER || link.category === deferredClassificationFilter;
       const matchesTag = deferredTagFilter === ALL_FILTER || link.tags.includes(deferredTagFilter);
       return matchesBoard && matchesClassification && matchesTag;
+    });
+    // Popularity sort: most-clicked first, newest as a stable tie-breaker.
+    return matches.sort((a, b) => {
+      const byClicks = (b.clicks || 0) - (a.clicks || 0);
+      if (byClicks !== 0) return byClicks;
+      // Coerce to a finite number so an unparseable timestamp can't return NaN and
+      // break the comparator's total order.
+      const at = Date.parse(a.created_at);
+      const bt = Date.parse(b.created_at);
+      return (Number.isFinite(bt) ? bt : 0) - (Number.isFinite(at) ? at : 0);
     });
   }, [activeBoard, deferredClassificationFilter, deferredTagFilter, links]);
 
@@ -486,6 +574,7 @@ export const useLinks = () => {
     activeClassifications,
     activeTags,
     classificationFilter,
+    displayClassifications,
     executeAddClassification,
     executeAddTag,
     executeDeleteTag,
@@ -497,6 +586,7 @@ export const useLinks = () => {
     handleDeleteLinkRequest,
     handleEditLinkRequest,
     handleOpenCreateModal,
+    handleOpenLink,
     handlePinSuccess,
     handleSaveLink,
     handleSelectBoard,

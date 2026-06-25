@@ -43,3 +43,27 @@ export const getSupabaseClient = async ({ useDemoMode }) => {
 
   return supabaseClientPromise;
 };
+
+// Warm DNS/TLS to the database origin and kick off the SDK chunk download as soon as
+// this module loads (in parallel with React mounting), so the first query isn't
+// serialized behind a cold dynamic import + connection setup. Best-effort; a no-op in
+// demo mode or when env is missing.
+const warmSupabase = () => {
+  if (!hasSupabaseEnv || import.meta.env?.VITE_DEMO_MODE === 'true') return;
+
+  if (typeof document !== 'undefined') {
+    try {
+      const preconnect = document.createElement('link');
+      preconnect.rel = 'preconnect';
+      preconnect.href = new URL(supabaseUrl).origin;
+      preconnect.crossOrigin = 'anonymous';
+      document.head.appendChild(preconnect);
+    } catch {
+      // malformed URL — skip the hint, the query path still works
+    }
+  }
+
+  void getSupabaseClient({ useDemoMode: false }).catch(() => {});
+};
+
+warmSupabase();

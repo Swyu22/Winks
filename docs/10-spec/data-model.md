@@ -14,11 +14,17 @@ public.links (
   category    text          not null    default '__WINKS_META__{...}'
                                         check (char_length(category) <= 2000),
   created_by  uuid          references auth.users(id) on delete set null
-                                        default auth.uid()
+                                        default auth.uid(),
+  clicks      integer       not null    default 0   -- 点击计数（见 ADR-0004）
 )
 ```
 
-**索引**：`(created_at desc)`、`(created_by)`。
+**索引**：`(created_at desc)`、`(created_by)`、`(clicks desc)`。
+
+> `clicks` 是**顶层列**，承载点击计数（热门排序）。它**不**进 `category` meta，理由见
+> [ADR-0004](../30-decisions/adr-0004-clicks-as-dedicated-column.md)。线上库需执行一次幂等迁移
+> （`alter table ... add column if not exists clicks ...`）；未执行时前端静默降级（计数恒 0、按
+> `created_at` 排序，自增写入失败被吞，打开链接不受影响）。
 
 **RLS**：开放给 `anon` / `authenticated` 全部 CRUD（详见 ADR-0002）。
 
@@ -54,6 +60,7 @@ type Link = {
   category: string;     // 分类名（"未分类" 或自定义），不再含 meta 前缀
   tags: string[];       // 已规范化、去重、非空
   board: '网站' | '页面';
+  clicks: number;       // 点击计数，hydrate 后恒为数字（缺省 0）
 }
 ```
 
@@ -93,6 +100,7 @@ type Link = {
 2. **tags**：`metadata.tags` 优先；否则 fallback 到 `link.tags ?? link.category` 的 legacy 解析；空集合补 `DEFAULT_TAGS[0]`。
 3. **classification**：`metadata.classification` 优先；否则若 `category` 是单值（不含中英文逗号）则当作分类名；否则用 `DEFAULT_CLASSIFICATIONS[0]`。
 4. **board**：`metadata.board` ∩ `DEFAULT_BOARDS`；否则用 `DEFAULT_BOARDS[0]`。
+5. **clicks**：`Number(link.clicks) || 0`，保证前端恒拿到非负数字（列缺失时退化为 0）。
 
 **调用点**（必须保证经过 hydrate）：
 - 初始 `fetchLinks` 的 `data.map`
@@ -109,6 +117,7 @@ type Link = {
 | `category` | 必填、`length <= 2000` |
 | `tags` | 至少 1 个非空字符串；元素去重；前端展示加 `#` 前缀但**存储不含** |
 | `board` | 必须 ∈ `DEFAULT_BOARDS` |
+| `clicks` | 非负整数；默认 0；自增走独立写路径（不经 `encodeLinkMeta`、不触发 PIN） |
 
 ## 7. 演化策略
 

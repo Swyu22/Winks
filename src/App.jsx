@@ -1,6 +1,7 @@
-import { Loader2, Plus, Search, X } from 'lucide-react';
+import { Plus, Search, X } from 'lucide-react';
 import { CategorySidebar, MobileCategoryBar } from './components/CategorySidebar.jsx';
 import { LinkCard } from './components/LinkCard.jsx';
+import { LinkGridSkeleton } from './components/LinkGridSkeleton.jsx';
 import { LinkModal } from './components/LinkModal.jsx';
 import { Logo } from './components/Logo.jsx';
 import { PinModal } from './components/PinModal.jsx';
@@ -14,6 +15,7 @@ export default function App() {
     activeClassifications,
     activeTags,
     classificationFilter,
+    displayClassifications,
     editingLink,
     executeAddClassification,
     executeAddTag,
@@ -26,6 +28,7 @@ export default function App() {
     handleDeleteLinkRequest,
     handleEditLinkRequest,
     handleOpenCreateModal,
+    handleOpenLink,
     handlePinSuccess,
     handleSaveLink,
     handleSelectBoard,
@@ -59,7 +62,7 @@ export default function App() {
       </nav>
 
       <CategorySidebar
-        classifications={activeClassifications}
+        classifications={displayClassifications}
         activeClassification={classificationFilter}
         onSelectClassification={handleSelectClassificationFilter}
         onDeleteClassification={handleDeleteClassificationRequest}
@@ -68,7 +71,7 @@ export default function App() {
       <main className="w-full px-6 pt-28 pb-20 flex-grow lg:pl-[18.5rem]">
         <div className="max-w-7xl mx-auto">
           <MobileCategoryBar
-            classifications={activeClassifications}
+            classifications={displayClassifications}
             activeClassification={classificationFilter}
             onSelectClassification={handleSelectClassificationFilter}
           />
@@ -136,9 +139,7 @@ export default function App() {
               <p className="text-red-600 mt-1 text-sm max-w-xl mx-auto">{fatalError}</p>
             </div>
           ) : loading ? (
-            <div className="flex justify-center items-center py-20">
-              <Loader2 aria-hidden="true" className="size-8 text-yellow-400 animate-spin" />
-            </div>
+            <LinkGridSkeleton />
           ) : (
             <>
               {filteredLinks.length > 0 ? (
@@ -149,6 +150,7 @@ export default function App() {
                       link={link}
                       onEdit={handleEditLinkRequest}
                       onDelete={handleDeleteLinkRequest}
+                      onOpen={handleOpenLink}
                     />
                   ))}
                 </div>

@@ -7,10 +7,11 @@ import {
   decodeLinkMeta,
   encodeLinkMeta,
   formatTag,
-  getFaviconUrl,
+  getFaviconCandidates,
   hydrateLink,
   normalizeName,
   parseTags,
+  sortClassificationsUncategorizedLast,
   toSafeHref,
   uniqueTags,
 } from './linkMeta.js';
@@ -72,8 +73,28 @@ test('builds board-local tag and classification options', () => {
 
 test('falls back to defaults for empty derived options and invalid favicons', () => {
   assert.deepEqual(buildBoardOptionsFromLinks([])['网站'].tags, DEFAULT_TAGS);
-  assert.equal(getFaviconUrl('not a url'), null);
-  assert.equal(getFaviconUrl('https://example.com/path'), 'https://www.google.com/s2/favicons?domain=example.com&sz=64');
+  assert.deepEqual(getFaviconCandidates('not a url'), []);
+  assert.deepEqual(getFaviconCandidates('https://example.com/path'), [
+    'https://www.google.com/s2/favicons?domain=example.com&sz=128',
+    'https://example.com/favicon.ico',
+    'https://icons.duckduckgo.com/ip3/example.com.ico',
+  ]);
+});
+
+test('hydrateLink carries a numeric clicks counter (defaulting to 0)', () => {
+  assert.equal(hydrateLink({ id: '1', category: '开发' }).clicks, 0);
+  assert.equal(hydrateLink({ id: '2', category: '开发', clicks: 7 }).clicks, 7);
+  assert.equal(hydrateLink({ id: '3', category: '开发', clicks: '12' }).clicks, 12);
+  assert.equal(hydrateLink({ id: '4', category: '开发', clicks: null }).clicks, 0);
+});
+
+test('sortClassificationsUncategorizedLast moves 未分类 to the end', () => {
+  assert.deepEqual(
+    sortClassificationsUncategorizedLast([DEFAULT_CLASSIFICATIONS[0], '工具', '设计']),
+    ['工具', '设计', DEFAULT_CLASSIFICATIONS[0]],
+  );
+  assert.deepEqual(sortClassificationsUncategorizedLast(['工具', '设计']), ['工具', '设计']);
+  assert.deepEqual(sortClassificationsUncategorizedLast([]), []);
 });
 
 test('toSafeHref allows only http(s) URLs and neutralizes other schemes', () => {

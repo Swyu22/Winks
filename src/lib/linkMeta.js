@@ -6,12 +6,20 @@ import {
 } from './constants.js';
 
 // Keep this transport contract in sync with docs/10-spec/data-model.md.
-export const getFaviconUrl = (url) => {
+// Ordered favicon sources, tried in turn by LinkCard's onError cascade before the
+// letter-avatar fallback. Google s2 is broad and crisp at sz=128; the direct
+// /favicon.ico fills Google's coverage gaps (new/niche sites it hasn't crawled, e.g.
+// 自建/内部站点); DuckDuckGo is a final independent fallback.
+export const getFaviconCandidates = (url) => {
   try {
-    const domain = new URL(url).hostname;
-    return `https://www.google.com/s2/favicons?domain=${domain}&sz=64`;
+    const { hostname, origin } = new URL(url);
+    return [
+      `https://www.google.com/s2/favicons?domain=${hostname}&sz=128`,
+      `${origin}/favicon.ico`,
+      `https://icons.duckduckgo.com/ip3/${hostname}.ico`,
+    ];
   } catch {
-    return null;
+    return [];
   }
 };
 
@@ -119,7 +127,17 @@ export const hydrateLink = (link) => {
     tags,
     category: classification,
     board,
+    clicks: Number(link.clicks) || 0,
   };
+};
+
+// 未分类 always sorts to the end of the classification list (sidebar + modal); other
+// classifications keep their existing order. Centralizes the "未分类 置底" rule so it
+// holds for both fetch-built options and in-session additions.
+export const sortClassificationsUncategorizedLast = (classifications = []) => {
+  const uncategorized = DEFAULT_CLASSIFICATIONS[0];
+  const others = classifications.filter((c) => c !== uncategorized);
+  return classifications.includes(uncategorized) ? [...others, uncategorized] : others;
 };
 
 const collectTagsFromLinks = (items) => {

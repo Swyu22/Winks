@@ -1,13 +1,15 @@
 name: Supabase Keepalive
 
 # Free-tier Supabase projects pause after 7 days of inactivity.
-# This workflow makes a minimal REST call every 6 days (and on demand)
-# to keep the project active.
+# This workflow makes a minimal REST call every 3 days (and on demand)
+# to keep the project active, leaving a comfortable margin so one missed
+# run can't let the project pause (which adds cold-start latency to the
+# first page load).
 
 on:
   schedule:
-    # Day-of-month every 6: fires on 1, 7, 13, 19, 25, 31 — max gap 6 days.
-    - cron: '0 12 */6 * *'
+    # Day-of-month every 3: fires on 1, 4, 7, ..., 28, 31 — max gap 3 days.
+    - cron: '0 12 */3 * *'
   workflow_dispatch:
 
 # Least privilege: this workflow only makes an outbound curl and needs no GITHUB_TOKEN scopes.

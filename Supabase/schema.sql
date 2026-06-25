@@ -30,8 +30,14 @@ alter table public.links
 alter table public.links
   add constraint links_category_check check (char_length(category) <= 2000);
 
+-- Per-link open counter (popularity sort). Volatile numeric data kept OUT of the
+-- category meta blob (see adr-0004); hydrateLink spreads it straight to the frontend.
+alter table public.links
+  add column if not exists clicks integer not null default 0;
+
 create index if not exists links_created_at_idx on public.links (created_at desc);
 create index if not exists links_created_by_idx on public.links (created_by);
+create index if not exists links_clicks_idx on public.links (clicks desc);
 
 alter table public.links enable row level security;
 

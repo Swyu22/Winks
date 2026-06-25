@@ -91,6 +91,18 @@
 - [x] 验证：`npm test` 16/16、`npm run lint` 0 错、`npm run build` 通过
 - [ ] 需人工确认：WCAG AA 对比度（白字/黄底、灰字/白底）—— 见 P2-4，未擅自改色
 
+### P1-5：加载性能 + favicon 命中率 + 点击计数排序 + 未分类置底 ✅ 2026-06-25（Claude Opus 4.8）
+
+需求：线上加载慢、很多 favicon 抓不到（如 withoa）、链接无排序、侧栏未分类应置底。多 Agent 理解 + 实现 + 对抗式审查（19 Agent，5 条确认发现已修）+ demo 浏览器冒烟。
+
+- [x] **性能**：localStorage SWR 缓存（秒出 + 后台 revalidate，读路径经幂等 hydrateLink）；`supabaseClient` 模块加载即 `warmSupabase()`（preconnect + 预拉 SDK chunk）；spinner → `LinkGridSkeleton` 骨架；vite `manualChunks` 拆 React vendor（入口 chunk 56.5KB→12.3KB gz）；keepalive 6 天 → 3 天
+- [x] **favicon**：`getFaviconUrl` → `getFaviconCandidates` 多源级联（Google s2 sz=128 → 直连 /favicon.ico → DuckDuckGo），`LinkCard` onError 逐级降级，耗尽才显示首字母
+- [x] **点击计数**：新增 `links.clicks` 列（[ADR-0004](../30-decisions/adr-0004-clicks-as-dedicated-column.md)）；`hydrateLink` 兜底带出；`handleOpenLink` 乐观自增 + `persistClick` 容错持久化（非 PIN、列缺失静默降级）；`filteredLinks` 按 clicks 降序、created_at 兜底
+- [x] **未分类置底**：`sortClassificationsUncategorizedLast` 仅用于侧栏渲染（`displayClassifications`）；`activeClassifications` 保持未分类在前供逻辑（删分类回退 / 新建默认），避免审查发现的孤儿错分类回归
+- [x] 文档：data-model（clicks 列/形状/校验）、PROJECT_MAP、ADR-0004、schema.sql
+- [x] 验证：`npm test` 18/18、`npm run lint` 0 错、`npm run build` 通过、demo 浏览器冒烟（排序/置底/favicon 正确、控制台 0 报错）
+- [ ] **需人工执行**：在 Supabase SQL Editor 跑一次幂等迁移使 clicks 生效（见 ADR-0004 §5 / schema.sql）；未执行前前端静默降级（计数恒 0、按时间排序）
+
 ## 4. 待规划（P2）
 
 ### P2-1：PIN 配置化
@@ -136,6 +148,6 @@
 | ~~私有仓库无法在当前账户方案启用 GitHub Pages~~ | ~~`www.winks.ink` 现有发布可能下线~~ | 已于 2026-06-05 恢复仓库 public，并恢复 `gh-pages:/` 发布源 |
 | `useLinks.js` 中 action 函数仍偏长 | 后续协作冲突、测试困难 | P1 拆 action helpers |
 | 组件缺少 React 层测试 | UI 回归只能靠 smoke | P2 评估 Vitest + Testing Library |
-| 外部 favicon 404 噪音 | Playwright 控制台有非业务错误 | 目前不影响页面功能；如需可后续加 favicon fallback 策略 |
+| ~~外部 favicon 404 噪音~~ | ~~Playwright 控制台有非业务错误~~ | ✅ 2026-06-25 落地多源级联 `getFaviconCandidates`（Google→直连→DuckDuckGo），命中率显著提升 |
 | Vite/esbuild dev-only 中危审计项 | 本地 dev server 在特定条件下有暴露风险 | P2 独立分支验证 Vite major 升级 |
 | 自定义 modal 未迁移 `<dialog>` | 无障碍与浏览器原生焦点管理仍可改进 | P2 独立处理，避免混入本轮审计 |
