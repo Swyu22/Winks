@@ -86,7 +86,7 @@ export const LinkCard = memo(function LinkCard({ link, onEdit, onDelete, onOpen 
 
   return (
     <div
-      className="group relative flex flex-col p-6 pb-16 min-h-[10rem] bg-white rounded-2xl border border-gray-100 transition-[border-color,box-shadow,transform] duration-300 hover:-translate-y-1 hover:border-yellow-200 hover:shadow-[0_0_30px_rgba(250,204,21,0.25)]"
+      className="group relative flex flex-col p-6 pb-16 min-h-[10rem] bg-white rounded-2xl border border-gray-100 transition-[border-color,box-shadow,transform] duration-300 hover:-translate-y-1 hover:border-brand-200 hover:shadow-[0_0_30px_rgba(255,208,0,0.25)]"
       style={{ contentVisibility: 'auto', containIntrinsicSize: '160px' }}
     >
       <div className="absolute top-4 right-4 flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity duration-200 z-10">
@@ -94,7 +94,7 @@ export const LinkCard = memo(function LinkCard({ link, onEdit, onDelete, onOpen 
           type="button"
           onClick={handleEdit}
           aria-label={`编辑链接：${link.title}`}
-          className="p-1.5 bg-white border border-gray-100 hover:bg-yellow-400 hover:text-white rounded-lg text-slate-600 transition-colors"
+          className="p-1.5 bg-white border border-gray-100 hover:bg-brand hover:text-brand-foreground rounded-lg text-slate-600 transition-colors"
           title="编辑"
         >
           <Pencil aria-hidden="true" className="size-3.5" />
@@ -133,7 +133,7 @@ export const LinkCard = memo(function LinkCard({ link, onEdit, onDelete, onOpen 
                 className="size-10 rounded-lg object-contain bg-gray-50 p-1"
               />
             ) : (
-              <div className="size-10 rounded-lg bg-white flex items-center justify-center font-bold text-lg text-[#0052D9]">
+              <div className="size-10 rounded-lg bg-[#0052D9] flex items-center justify-center font-bold text-2xl text-white">
                 {link.title.charAt(0).toUpperCase()}
               </div>
             )}
@@ -141,7 +141,7 @@ export const LinkCard = memo(function LinkCard({ link, onEdit, onDelete, onOpen 
         </div>
 
         <div className="mt-auto">
-          <h3 className="font-semibold text-gray-800 truncate pr-4 text-lg group-hover:text-yellow-600 transition-colors">
+          <h3 className="font-semibold text-gray-800 truncate pr-4 text-lg group-hover:text-brand-text transition-colors">
             {link.title}
           </h3>
           <div className="mt-2 flex flex-wrap gap-1.5">
@@ -160,7 +160,7 @@ export const LinkCard = memo(function LinkCard({ link, onEdit, onDelete, onOpen 
         className={`absolute left-6 bottom-4 origin-bottom-left scale-[0.65] h-8 px-3 rounded-lg text-xs font-bold border transition-colors flex items-center gap-1 ${
           copied
             ? 'bg-green-50 text-green-600 border-green-200'
-            : 'bg-white text-gray-500 border-gray-100 hover:border-yellow-200 hover:text-yellow-600'
+            : 'bg-white text-gray-500 border-gray-100 hover:border-brand-200 hover:text-brand-text'
         }`}
         title="复制链接"
       >

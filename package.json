@@ -17,6 +17,9 @@
     "deploy": "gh-pages -d dist"
   },
   "dependencies": {
+    "@fontsource-variable/jetbrains-mono": "^5.2.8",
+    "@fontsource-variable/noto-sans-sc": "^5.2.10",
+    "@fontsource-variable/space-grotesk": "^5.2.10",
     "@supabase/supabase-js": "^2.39.0",
     "lucide-react": "^0.294.0",
     "react": "^18.2.0",

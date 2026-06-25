@@ -176,7 +176,7 @@ const LinkModalContent = ({
               type="text"
               autoComplete="off"
               placeholder="例如：Stripe…"
-              className="w-full h-12 px-4 rounded-xl bg-gray-50 border-transparent focus:bg-white focus:border-yellow-400 focus:ring-4 focus:ring-yellow-100 transition-colors outline-none font-medium text-gray-800 placeholder-gray-300"
+              className="w-full h-12 px-4 rounded-xl bg-gray-50 border-transparent focus:bg-white focus:border-brand focus:ring-4 focus:ring-brand-100 transition-colors outline-none font-medium text-gray-800 placeholder-gray-300"
               value={safeFormData.title}
               onChange={(e) => setFormData((prev) => ({ ...prev, title: e.target.value }))}
             />
@@ -193,7 +193,7 @@ const LinkModalContent = ({
               autoComplete="off"
               spellCheck={false}
               placeholder="例如：stripe.com…"
-              className="w-full h-12 px-4 rounded-xl bg-gray-50 border-transparent focus:bg-white focus:border-yellow-400 focus:ring-4 focus:ring-yellow-100 transition-colors outline-none font-medium text-gray-800 placeholder-gray-300"
+              className="w-full h-12 px-4 rounded-xl bg-gray-50 border-transparent focus:bg-white focus:border-brand focus:ring-4 focus:ring-brand-100 transition-colors outline-none font-medium text-gray-800 placeholder-gray-300"
               value={safeFormData.url}
               onChange={(e) => setFormData((prev) => ({ ...prev, url: e.target.value }))}
             />
@@ -210,8 +210,8 @@ const LinkModalContent = ({
                     onClick={() => setFormData((prev) => ({ ...prev, category: classification }))}
                     className={`h-8 px-3 text-xs font-bold rounded-lg border transition-colors ${
                       safeFormData.category === classification
-                        ? 'bg-yellow-400 border-yellow-400 text-white shadow-md'
-                        : 'bg-white border-gray-100 text-gray-500 hover:border-yellow-200'
+                        ? 'bg-brand border-brand text-brand-foreground shadow-md'
+                        : 'bg-white border-gray-100 text-gray-500 hover:border-brand-200'
                     }`}
                   >
                     {classification}
@@ -237,7 +237,7 @@ const LinkModalContent = ({
                 <button
                   type="button"
                   onClick={() => setIsAddingClassification(true)}
-                  className="h-8 px-3 text-xs font-bold rounded-lg border border-dashed border-gray-300 text-gray-400 hover:border-yellow-400 hover:text-yellow-600 flex items-center gap-1 bg-gray-50 hover:bg-white transition-colors"
+                  className="h-8 px-3 text-xs font-bold rounded-lg border border-dashed border-gray-300 text-gray-400 hover:border-brand hover:text-brand-text flex items-center gap-1 bg-gray-50 hover:bg-white transition-colors"
                 >
                   <Plus aria-hidden="true" className="size-3" /> 新增分类
                 </button>
@@ -252,14 +252,14 @@ const LinkModalContent = ({
                   aria-label="新分类名称"
                   autoComplete="off"
                   placeholder="输入新分类名称…"
-                  className="flex-1 h-10 px-3 rounded-lg bg-white border border-yellow-200 focus:ring-2 focus:ring-yellow-100 outline-none text-sm"
+                  className="flex-1 h-10 px-3 rounded-lg bg-white border border-brand-200 focus:ring-2 focus:ring-brand-100 outline-none text-sm"
                   value={newClassificationName}
                   onChange={(e) => setNewClassificationName(e.target.value)}
                 />
                 <button
                   type="button"
                   onClick={handleCreateClassification}
-                  className="h-10 px-4 bg-yellow-400 text-white rounded-lg text-sm font-bold hover:shadow-lg"
+                  className="h-10 px-4 bg-brand text-brand-foreground rounded-lg text-sm font-bold hover:shadow-lg"
                 >
                   确认
                 </button>
@@ -286,8 +286,8 @@ const LinkModalContent = ({
                     onClick={() => toggleTag(tag)}
                     className={`h-8 px-3 text-xs font-bold rounded-lg border transition-colors ${
                       safeFormData.tags.includes(tag)
-                        ? 'bg-yellow-400 border-yellow-400 text-white shadow-md'
-                        : 'bg-white border-gray-100 text-gray-500 hover:border-yellow-200'
+                        ? 'bg-brand border-brand text-brand-foreground shadow-md'
+                        : 'bg-white border-gray-100 text-gray-500 hover:border-brand-200'
                     }`}
                   >
                     {formatTag(tag)}
@@ -313,7 +313,7 @@ const LinkModalContent = ({
                 <button
                   type="button"
                   onClick={() => setIsAddingTag(true)}
-                  className="h-8 px-3 text-xs font-bold rounded-lg border border-dashed border-gray-300 text-gray-400 hover:border-yellow-400 hover:text-yellow-600 flex items-center gap-1 bg-gray-50 hover:bg-white transition-colors"
+                  className="h-8 px-3 text-xs font-bold rounded-lg border border-dashed border-gray-300 text-gray-400 hover:border-brand hover:text-brand-text flex items-center gap-1 bg-gray-50 hover:bg-white transition-colors"
                 >
                   <Plus aria-hidden="true" className="size-3" /> 新增标签
                 </button>
@@ -328,14 +328,14 @@ const LinkModalContent = ({
                   aria-label="新标签名称"
                   autoComplete="off"
                   placeholder="输入新标签名称…"
-                  className="flex-1 h-10 px-3 rounded-lg bg-white border border-yellow-200 focus:ring-2 focus:ring-yellow-100 outline-none text-sm"
+                  className="flex-1 h-10 px-3 rounded-lg bg-white border border-brand-200 focus:ring-2 focus:ring-brand-100 outline-none text-sm"
                   value={newTagName}
                   onChange={(e) => setNewTagName(e.target.value)}
                 />
                 <button
                   type="button"
                   onClick={handleCreateTag}
-                  className="h-10 px-4 bg-yellow-400 text-white rounded-lg text-sm font-bold hover:shadow-lg"
+                  className="h-10 px-4 bg-brand text-brand-foreground rounded-lg text-sm font-bold hover:shadow-lg"
                 >
                   确认
                 </button>
@@ -354,7 +354,7 @@ const LinkModalContent = ({
           <button
             type="submit"
             disabled={loading}
-            className="w-full h-12 mt-4 bg-gray-900 text-white font-bold rounded-xl hover:bg-gray-950 hover:shadow-lg hover:shadow-yellow-400/20 active:scale-[0.98] transition-[background-color,box-shadow,transform] flex items-center justify-center gap-2"
+            className="w-full h-12 mt-4 bg-gray-900 text-white font-bold rounded-xl hover:bg-gray-950 hover:shadow-lg hover:shadow-[0_10px_25px_-5px_rgba(255,208,0,0.25)] active:scale-[0.98] transition-[background-color,box-shadow,transform] flex items-center justify-center gap-2"
           >
             {loading ? <Loader2 aria-hidden="true" className="size-4 animate-spin" /> : (initialData ? '保存修改' : '保存链接')}
           </button>

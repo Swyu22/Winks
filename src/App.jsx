@@ -41,7 +41,7 @@ export default function App() {
   } = useLinks();
 
   return (
-    <div className="min-h-screen bg-gray-50 text-slate-900 font-sans selection:bg-yellow-200 selection:text-yellow-950 flex flex-col">
+    <div className="min-h-screen bg-gray-50 text-slate-900 font-sans selection:bg-brand-200 selection:text-brand-foreground flex flex-col">
       <nav className="fixed top-0 left-0 right-0 z-40 bg-white/80 backdrop-blur-md border-b border-gray-100">
         <div className="h-20 pl-4 pr-4 sm:pl-6 sm:pr-6 lg:pl-6 lg:pr-8 relative flex items-center justify-between lg:justify-end">
           <div className="lg:absolute lg:left-0 lg:top-1/2 lg:-translate-y-1/2 lg:w-64 lg:flex lg:items-center lg:justify-center">
@@ -85,7 +85,7 @@ export default function App() {
                 className={`px-4 py-2 rounded-full text-sm font-bold transition-colors ${
                   activeBoard === board
                     ? 'bg-gray-900 text-white'
-                    : 'bg-white text-gray-600 border border-gray-100 hover:border-yellow-200 hover:text-yellow-600'
+                    : 'bg-white text-gray-600 border border-gray-100 hover:border-brand-200 hover:text-brand-text'
                 }`}
               >
                 {board}
@@ -94,7 +94,7 @@ export default function App() {
           </div>
 
           <div className="mb-10 text-center sm:text-left">
-            <h1 className="text-xl sm:text-2xl font-semibold text-gray-900 mb-3 tracking-tight">
+            <h1 className="font-display text-xl sm:text-2xl font-semibold text-gray-900 mb-3 tracking-tight">
               闪链・一键直达优质链接
             </h1>
             <p className="text-gray-500 text-sm sm:text-base max-w-xl">
@@ -108,8 +108,8 @@ export default function App() {
               onClick={() => handleSelectTagFilter(ALL_FILTER)}
               className={`px-4 py-2 rounded-full text-sm font-bold transition-colors whitespace-nowrap ${
                 tagFilter === ALL_FILTER
-                  ? 'bg-yellow-400 text-white shadow-[0_4px_15px_rgba(250,204,21,0.4)]'
-                  : 'bg-white text-gray-500 border border-gray-100 hover:border-yellow-200 hover:text-yellow-500'
+                  ? 'bg-brand text-brand-foreground shadow-[0_4px_15px_rgba(255,208,0,0.4)]'
+                  : 'bg-white text-gray-500 border border-gray-100 hover:border-brand-200 hover:text-brand-text'
               }`}
             >
               #全部
@@ -121,8 +121,8 @@ export default function App() {
                 onClick={() => handleSelectTagFilter(tag)}
                 className={`px-4 py-2 rounded-full text-sm font-bold transition-colors whitespace-nowrap ${
                   tagFilter === tag
-                    ? 'bg-yellow-400 text-white shadow-[0_4px_15px_rgba(250,204,21,0.4)]'
-                    : 'bg-white text-gray-500 border border-gray-100 hover:border-yellow-200 hover:text-yellow-500'
+                    ? 'bg-brand text-brand-foreground shadow-[0_4px_15px_rgba(255,208,0,0.4)]'
+                    : 'bg-white text-gray-500 border border-gray-100 hover:border-brand-200 hover:text-brand-text'
                 }`}
               >
                 {formatTag(tag)}
@@ -188,7 +188,7 @@ export default function App() {
       />
 
       <footer className="text-center py-8 text-gray-400 text-xs font-medium leading-relaxed bg-white/50 border-t border-gray-100">
-        <p>Copyright © 2011-2026 WithMedia Co.Ltd all rights reserved</p>
+        <p>Copyright © <span className="font-mono">2011-2026</span> WithMedia Co.Ltd all rights reserved</p>
         <p className="mt-1 opacity-70">内部使用 请勿外传</p>
       </footer>
     </div>

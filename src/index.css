@@ -2,6 +2,31 @@
 @tailwind components;
 @tailwind utilities;
 
+/*
+ * WithMedia.与众 设计 tokens —— 品牌色 + 字体规范（详见品牌规范）。
+ * 颜色为单一事实源，Tailwind 的 brand-* 类经 var() 引用这里。
+ */
+:root {
+  /* 品牌黄色阶 50→700（400 为主色 #FFD000；hover 加深用 500/600） */
+  --brand-50: #fffbeb;
+  --brand-100: #fff3c4;
+  --brand-200: #ffe89a;
+  --brand-300: #ffdd5c;
+  --brand-400: #ffd000;
+  --brand-500: #f5c200;
+  --brand-600: #d9a400;
+  --brand-700: #a87e00;
+  --brand: var(--brand-400);
+  --brand-foreground: #09090b; /* 黄底上的文字色（近黑）——品牌是黑配黄，黄底永远配深字 */
+  --brand-muted: var(--brand-100);
+  --brand-text: #8a6800; /* 白底上可用的金色文字（强调/hover 态）——过 WCAG AA（≈4.7:1）；品牌黄本身在白底对比不足 */
+
+  /* 三套自托管字体栈（@fontsource-variable；拉丁→中文→等宽） */
+  --font-sans: "Space Grotesk Variable", "Space Grotesk", "Noto Sans SC Variable", "Noto Sans SC", -apple-system, "PingFang SC", "Microsoft YaHei", "Segoe UI", sans-serif;
+  --font-display: "Space Grotesk Variable", "Space Grotesk", "Noto Sans SC Variable", "Noto Sans SC", -apple-system, "PingFang SC", "Microsoft YaHei", sans-serif;
+  --font-mono: "JetBrains Mono Variable", "JetBrains Mono", "SFMono-Regular", ui-monospace, "Cascadia Code", Menlo, monospace;
+}
+
 /* 自定义滚动条样式 (可选) */
 ::-webkit-scrollbar {
   height: 6px;

@@ -46,7 +46,7 @@ export const PinModal = memo(function PinModal({ isOpen, onClose, onSuccess }) {
           <X aria-hidden="true" className="size-4" />
         </button>
         <div className="text-center mb-6">
-          <div className="size-10 bg-yellow-100 rounded-full flex items-center justify-center mx-auto mb-3 text-yellow-600">
+          <div className="size-10 bg-brand-100 rounded-full flex items-center justify-center mx-auto mb-3 text-brand-700">
             <Lock aria-hidden="true" className="size-5" />
           </div>
           <h3 id="pin-modal-title" className="font-semibold text-gray-900">安全验证</h3>
@@ -66,7 +66,7 @@ export const PinModal = memo(function PinModal({ isOpen, onClose, onSuccess }) {
             aria-invalid={error}
             aria-describedby={error ? 'admin-pin-error' : undefined}
             placeholder="输入密码…"
-            className={`w-full text-center text-2xl tracking-[0.5em] font-bold h-12 rounded-xl bg-gray-50 border-2 outline-none transition-colors ${error ? 'border-red-400 bg-red-50 text-red-500 placeholder-red-300' : 'border-gray-100 focus:border-yellow-400 focus:bg-white text-gray-800'}`}
+            className={`w-full text-center text-2xl tracking-[0.5em] font-bold h-12 rounded-xl bg-gray-50 border-2 outline-none transition-colors ${error ? 'border-red-400 bg-red-50 text-red-500 placeholder-red-300' : 'border-gray-100 focus:border-brand focus:bg-white text-gray-800'}`}
             value={pin}
             onChange={(e) => {
               setPin(e.target.value);

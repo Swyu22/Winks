@@ -101,7 +101,27 @@
 - [x] **未分类置底**：`sortClassificationsUncategorizedLast` 仅用于侧栏渲染（`displayClassifications`）；`activeClassifications` 保持未分类在前供逻辑（删分类回退 / 新建默认），避免审查发现的孤儿错分类回归
 - [x] 文档：data-model（clicks 列/形状/校验）、PROJECT_MAP、ADR-0004、schema.sql
 - [x] 验证：`npm test` 18/18、`npm run lint` 0 错、`npm run build` 通过、demo 浏览器冒烟（排序/置底/favicon 正确、控制台 0 报错）
-- [ ] **需人工执行**：在 Supabase SQL Editor 跑一次幂等迁移使 clicks 生效（见 ADR-0004 §5 / schema.sql）；未执行前前端静默降级（计数恒 0、按时间排序）
+- [x] **已上线 + 人工迁移已执行**：2026-06-25 部署 + 用户在 Supabase 跑迁移，REST 实测 clicks 列生效（withoa 真实点击落库并排首位）
+
+### P1-6：favicon 策略迭代（应对挂起/限流/SVG 声明）✅ 2026-06-26（Claude Opus 4.8）
+
+用户反馈 withoa 图标歪/不符、蓝湖仍缺省。逐源实测 + 下载肉眼比对后定位多个陷阱并修复：
+
+- [x] Google s2「伪成功」地球图（200/301）卡住级联 → 改 origin-first
+- [x] 单服务批量被 gstatic 限流（整屏卡片 16px 占位）→ **origin-first 分散负载**：`getFaviconCandidates` 返回 `[{/icon.svg 2s},{/favicon.ico 3s},{faviconV2 6s}]`，每源独立超时；faviconV2 占位（≤16px）启发式直接落首字母
+- [x] withoa 声明 `/icon.svg` → 直接取站点矢量图（铺满、上正、忠实），不再用服务端栅格
+- [x] 实测线上覆盖率回升（~19/26，余为 data-URI 内联图标等不可抓取站）
+
+### P1-7：品牌色 token 化 + 自托管字体（设计系统）✅ 2026-06-26（Claude Opus 4.8）
+
+落地 WithMedia 品牌规范，多 Agent 对抗式审查（14 Agent）后修可达性回归。详见 [ADR-0005](../30-decisions/adr-0005-brand-tokens-and-self-hosted-fonts.md)。
+
+- [x] 颜色 token 化：`index.css :root` 品牌色阶 + `tailwind.config` 映射 `bg-brand`/`text-brand`/…；全站 `yellow-*` → `brand`（6 文件 ~30 处，含 `public/favicon.svg`）
+- [x] **黑配黄**：`bg-brand text-brand-foreground` 取代白字黄底（顺带解决 P2-4 对比度）
+- [x] 自托管字体：`@fontsource-variable/{space-grotesk,noto-sans-sc,jetbrains-mono}`，脱离 Google CDN，CJK 按需子集；`font-display` 标题/Logo、`font-mono` 数字
+- [x] 首字母块：`#0052D9` 蓝底 + 白字 + 字号 +30%（text-lg→2xl）
+- [x] 审查修复：新增 `--brand-text #8A6800`（白底金字过 AA，替换低对比 `text-brand-600/500` hover）；PIN 锁图标 `brand-700`；favicon 改 #FFD000 + 近黑闪电；PIN 输入去 mono（中文 placeholder）
+- [x] 验证：`npm test` 18/18、`npm run lint`、`npm run build`；浏览器 DOM+截图（`--brand`=#ffd000、激活态黑配黄、3 套字体已加载、蓝底白字首字母）
 
 ## 4. 待规划（P2）
 
@@ -128,7 +148,7 @@
 - [x] **2026-06-14** 补齐两个自定义 modal 的 Esc 关闭 + 初始焦点（最小无障碍修复，未迁 `<dialog>`）
 - [ ] 评估 `PinModal` / `LinkModal` 是否迁移到原生 `<dialog>`（含完整 Tab focus-trap）
 - [ ] 评估 `LinkModal` 多个相关 state 是否改为 `useReducer`
-- [ ] **需人工确认**：WCAG AA 对比度 —— `bg-yellow-400 text-white`（活动 Tab/分类/标签/确认按钮，全站品牌色）与 `text-gray-400`（空态/页脚等次要文字）。属调色决策，需统一确认是否调深文字色或加深背景
+- [x] **2026-06-26 已解决**：WCAG AA 对比度 —— 黑配黄品牌规范落地（`bg-brand text-brand-foreground` ≈13.5:1 取代白字黄底），白底金色 hover 文字改用 `--brand-text`（≈4.7:1 过 AA），见 P1-7 / [ADR-0005](../30-decisions/adr-0005-brand-tokens-and-self-hosted-fonts.md)。剩 `text-gray-400` 次要文字（页脚/空态）仍属可接受的弱化文字
 
 ## 5. 不在本迭代
 

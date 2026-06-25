@@ -31,9 +31,10 @@
 
 | 文件 | 职责 | 不该做的事 |
 |---|---|---|
-| [index.html](../../index.html) | 挂载 #root，加载 main.jsx | 不要写死部署绝对路径（保持 Vite `base: './'`） |
-| [src/main.jsx](../../src/main.jsx) | React StrictMode + ReactDOM root | 不放业务逻辑 |
-| [src/index.css](../../src/index.css) | Tailwind 入口 | 不写业务样式（用 Tailwind utility） |
+| [index.html](../../index.html) | 挂载 #root，加载 main.jsx；引用 `public/favicon.svg`（黑配黄静态资源） | 不要写死部署绝对路径（保持 Vite `base: './'`） |
+| [src/main.jsx](../../src/main.jsx) | React StrictMode + ReactDOM root；导入 3 套 @fontsource-variable 自托管字体 | 不放业务逻辑 |
+| [src/index.css](../../src/index.css) | Tailwind 入口 + **设计 token `:root`**（品牌色阶 `--brand-*`、`--brand-foreground` 黑配黄、`--brand-text` 白底金字、字体栈 `--font-sans/display/mono`） | 不写业务样式（用 Tailwind utility）；token 是颜色单一事实源，见 [adr-0005](../30-decisions/adr-0005-brand-tokens-and-self-hosted-fonts.md) |
+| [tailwind.config.js](../../tailwind.config.js) | 把 `:root` token 映射成 `bg-brand`/`text-brand`/`font-display` 等类（`colors.brand` + `fontFamily`） | hex 变量不支持 `/opacity` 修饰，彩色阴影用字面 `rgba(255,208,0,…)` |
 
 ### 2.2 页面编排层
 
