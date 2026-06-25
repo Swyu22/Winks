@@ -54,7 +54,7 @@
 - [x] 新增 `src/lib/linkActions.test.js`：9 个 Node 内置测试，覆盖边界与 board 隔离
 - [x] 在 hook 内提取 `runBatchUpdate` / `runSingleMutation` 两个 callback helper 统一 demo/Supabase 分支
 - [x] 进一步拆分 `handleSaveLink` → `executeUpdateLink` + `executeCreateLink` + 10 行入口函数
-- [x] `useLinks.js`：589 → 498 行；所有 action 函数 ≤ 30 行
+- [x] `useLinks.js`：589 → 498 行（P1 完成时的快照；现 511 行，含 2026-06-14 resync 补丁）；所有 action 函数 ≤ 30 行
 - [x] 验证：`npm test` 15/15 pass、`npm run lint` 零错误、`npm run build` 通过
 
 ### P1-2：综合审计（simplify + security-review + 手动）✅ 2026-05-09
@@ -80,6 +80,17 @@
 - [x] 拆出 `MobileCategoryBar`，修复移动端分类条被 fixed 顶栏遮挡的问题
 - [x] 验证：`npm test` 15/15、`npm run lint`、`npm run build`、React Doctor 93 → 98、Playwright 桌面/移动 smoke 通过
 
+### P1-4：Skills 综合审计复跑（多 Agent + 对抗式验证）✅ 2026-06-14（Claude Opus 4.8）
+
+- [x] 7 维并行审查（正确性 / React+a11y / 安全 / CI+配置 / Supabase SQL / 文档 / 质量），每条发现独立对抗式验证，过滤 ADR 刻意选型误报
+- [x] 正确性：`runSingleMutation` 无 error 但空返回行时改 `fetchLinks()` resync；`LinkCard` 在 `link.url` 变更时重置 `imgError`
+- [x] 安全：新增 `toSafeHref` href http(s) 白名单（render sink 纵深防御）+ Node 单测
+- [x] 可访问性：`PinModal` / `LinkModal` 补 Esc 关闭 + 初始焦点；`PinModal` 错误改为常驻 `aria-live` 区域
+- [x] CI / 配置：keepalive workflow 加 `permissions: {}` + `set -euo pipefail`；`package.json` 加 `engines.node>=18`
+- [x] 文档：修 CLAUDE/AGENTS git-hook 自相矛盾；校正 `.cloud.md` 行数；补 PROJECT_MAP 常量清单；`.env.example` 默认说明
+- [x] 验证：`npm test` 16/16、`npm run lint` 0 错、`npm run build` 通过
+- [ ] 需人工确认：WCAG AA 对比度（白字/黄底、灰字/白底）—— 见 P2-4，未擅自改色
+
 ## 4. 待规划（P2）
 
 ### P2-1：PIN 配置化
@@ -102,9 +113,10 @@
 
 ### P2-4：React Doctor 剩余项
 
-- [ ] 评估 `PinModal` / `LinkModal` 是否迁移到原生 `<dialog>`
+- [x] **2026-06-14** 补齐两个自定义 modal 的 Esc 关闭 + 初始焦点（最小无障碍修复，未迁 `<dialog>`）
+- [ ] 评估 `PinModal` / `LinkModal` 是否迁移到原生 `<dialog>`（含完整 Tab focus-trap）
 - [ ] 评估 `LinkModal` 多个相关 state 是否改为 `useReducer`
-- [ ] 复核 React Doctor `no-gray-on-colored-background` 是否为可接受的设计误报或需要调色
+- [ ] **需人工确认**：WCAG AA 对比度 —— `bg-yellow-400 text-white`（活动 Tab/分类/标签/确认按钮，全站品牌色）与 `text-gray-400`（空态/页脚等次要文字）。属调色决策，需统一确认是否调深文字色或加深背景
 
 ## 5. 不在本迭代
 

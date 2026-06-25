@@ -143,6 +143,9 @@ const LinkModalContent = ({
       role="dialog"
       aria-modal="true"
       aria-labelledby="link-modal-title"
+      onKeyDown={(e) => {
+        if (e.key === 'Escape') onClose();
+      }}
       className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-white/80 backdrop-blur-sm transition-opacity duration-300 animate-in fade-in"
     >
       <div className="w-full max-w-md bg-white rounded-3xl shadow-[0_10px_40px_-10px_rgba(0,0,0,0.1)] border border-gray-100 p-8 relative zoom-in-95 duration-200">
@@ -169,6 +172,7 @@ const LinkModalContent = ({
               id="link-title-input"
               name="title"
               required
+              autoFocus
               type="text"
               autoComplete="off"
               placeholder="例如：Stripe…"

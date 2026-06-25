@@ -56,7 +56,7 @@
 | 文件 | 职责 |
 |---|---|
 | [src/hooks/useLinks.js](../../src/hooks/useLinks.js) | links / boardOptions / filters / modal state；Supabase CRUD；PIN 流程编排。内部 `runBatchUpdate` / `runSingleMutation` 负责 demo/Supabase 分支 |
-| [src/lib/constants.js](../../src/lib/constants.js) | `DEFAULT_*`、`LINK_META_PREFIX`、`APP_VERSION`、`USE_DEMO_MODE` |
+| [src/lib/constants.js](../../src/lib/constants.js) | `DEFAULT_*`、`LINK_META_PREFIX`、`APP_VERSION`、`USE_DEMO_MODE`、`ADMIN_PIN`、`ALL_FILTER`、`PIN_ACTIONS` |
 | [src/lib/linkMeta.js](../../src/lib/linkMeta.js) | `encodeLinkMeta` / `decodeLinkMeta` / `hydrateLink` / tag/classification/board 归一化 |
 | [src/lib/linkActions.js](../../src/lib/linkActions.js) | 纯函数：`applyTagDeleteLocally` / `applyClassificationDeleteLocally` / `normalizeSaveLinkData` / `getBoardOption` / `withBoardValues`。可被 Node 测试 |
 | [src/lib/supabaseClient.js](../../src/lib/supabaseClient.js) | 单例懒加载 Supabase client；`getSupabaseInitError()` 用于 UI 显式错误 |

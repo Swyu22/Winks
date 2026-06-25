@@ -92,7 +92,7 @@ Winks.闪链 —— 开放协作式书签导航站（React + Vite + Supabase + T
 ## 7. 常用命令
 
 ```bash
-npm install        # 安装依赖（自动注册 git hooks，见下）
+npm install        # 安装依赖（git hooks 不会自动注册，需手动执行一次，见 §8）
 npm run dev        # 启动开发服务器（127.0.0.1:4173）
 npm test           # Node 内置测试，当前覆盖 linkMeta 纯函数
 npm run lint       # ESLint

@@ -31,6 +31,9 @@ export const PinModal = memo(function PinModal({ isOpen, onClose, onSuccess }) {
       role="dialog"
       aria-modal="true"
       aria-labelledby="pin-modal-title"
+      onKeyDown={(e) => {
+        if (e.key === 'Escape') onClose();
+      }}
       className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-gray-950/60 backdrop-blur-sm animate-in fade-in duration-200"
     >
       <div className="w-full max-w-xs bg-white rounded-2xl shadow-2xl p-6 relative zoom-in-95 duration-200">
@@ -53,6 +56,7 @@ export const PinModal = memo(function PinModal({ isOpen, onClose, onSuccess }) {
           <input
             id="admin-pin-input"
             name="admin-pin"
+            autoFocus
             aria-label="管理员密码"
             type="password"
             inputMode="numeric"
@@ -69,7 +73,13 @@ export const PinModal = memo(function PinModal({ isOpen, onClose, onSuccess }) {
               setError(false);
             }}
           />
-          {error && <p id="admin-pin-error" aria-live="polite" className="text-red-500 text-xs text-center mt-2 font-bold">密码错误</p>}
+          <p
+            id="admin-pin-error"
+            aria-live="polite"
+            className={`text-red-500 text-xs text-center mt-2 font-bold ${error ? '' : 'sr-only'}`}
+          >
+            {error ? '密码错误' : ''}
+          </p>
           <button type="submit" className="w-full mt-4 h-10 bg-gray-900 text-white rounded-lg font-bold text-sm hover:bg-gray-950 transition-colors">
             确认
           </button>

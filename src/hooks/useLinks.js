@@ -204,10 +204,16 @@ export const useLinks = () => {
         showSupabaseError(actionName, error);
         return false;
       }
-      if (data?.[0]) remoteApply(data[0]);
+      if (data?.[0]) {
+        remoteApply(data[0]);
+        return true;
+      }
+      // No error but no row returned (e.g. updating a row another client already deleted under
+      // the open RLS): resync from server so local state matches reality instead of diverging.
+      await fetchLinks();
       return true;
     },
-    [resolveSupabaseClient, showSupabaseError],
+    [fetchLinks, resolveSupabaseClient, showSupabaseError],
   );
 
   const requestAuth = useCallback((action) => {

@@ -15,6 +15,18 @@ export const getFaviconUrl = (url) => {
   }
 };
 
+// Defense-in-depth at the anchor render sink: only http(s) hrefs are allowed, so a non-http(s)
+// value that ever reaches the frontend (the Supabase url CHECK lives in a separately-managed
+// project) cannot execute as a javascript:/data: URL. Legitimate http(s) links pass through.
+export const toSafeHref = (url) => {
+  try {
+    const { protocol } = new URL(url);
+    return protocol === 'http:' || protocol === 'https:' ? url : '#';
+  } catch {
+    return '#';
+  }
+};
+
 export const normalizeName = (value) => String(value || '').trim().replace(/^#+\s*/, '').trim();
 
 export const normalizeTag = (value) => normalizeName(value);

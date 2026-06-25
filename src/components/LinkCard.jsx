@@ -1,11 +1,16 @@
-import { memo, useCallback, useState } from 'react';
+import { memo, useCallback, useEffect, useState } from 'react';
 import { Copy, Pencil, Trash2 } from 'lucide-react';
-import { formatTag, getFaviconUrl } from '../lib/linkMeta.js';
+import { formatTag, getFaviconUrl, toSafeHref } from '../lib/linkMeta.js';
 
 export const LinkCard = memo(function LinkCard({ link, onEdit, onDelete }) {
   const [imgError, setImgError] = useState(false);
   const [copied, setCopied] = useState(false);
   const favicon = getFaviconUrl(link.url);
+  // Card instances are keyed by link.id, so editing a link's URL reuses the instance;
+  // clear the stale favicon-failure flag when the URL changes so a new favicon can load.
+  useEffect(() => {
+    setImgError(false);
+  }, [link.url]);
   const handleEdit = useCallback(
     (e) => {
       e.preventDefault();
@@ -73,7 +78,7 @@ export const LinkCard = memo(function LinkCard({ link, onEdit, onDelete }) {
         </button>
       </div>
 
-      <a href={link.url} target="_blank" rel="noopener noreferrer" className="flex-1 flex flex-col">
+      <a href={toSafeHref(link.url)} target="_blank" rel="noopener noreferrer" className="flex-1 flex flex-col">
         <div className="flex items-start justify-between mb-4">
           <div className="relative">
             {!imgError && favicon ? (

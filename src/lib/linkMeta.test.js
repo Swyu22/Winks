@@ -11,6 +11,7 @@ import {
   hydrateLink,
   normalizeName,
   parseTags,
+  toSafeHref,
   uniqueTags,
 } from './linkMeta.js';
 
@@ -73,4 +74,12 @@ test('falls back to defaults for empty derived options and invalid favicons', ()
   assert.deepEqual(buildBoardOptionsFromLinks([])['网站'].tags, DEFAULT_TAGS);
   assert.equal(getFaviconUrl('not a url'), null);
   assert.equal(getFaviconUrl('https://example.com/path'), 'https://www.google.com/s2/favicons?domain=example.com&sz=64');
+});
+
+test('toSafeHref allows only http(s) URLs and neutralizes other schemes', () => {
+  assert.equal(toSafeHref('https://example.com'), 'https://example.com');
+  assert.equal(toSafeHref('http://example.com'), 'http://example.com');
+  assert.equal(toSafeHref('javascript:alert(1)'), '#');
+  assert.equal(toSafeHref('data:text/html,<script>alert(1)</script>'), '#');
+  assert.equal(toSafeHref('not a url'), '#');
 });
