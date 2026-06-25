@@ -75,8 +75,8 @@ test('falls back to defaults for empty derived options and invalid favicons', ()
   assert.deepEqual(buildBoardOptionsFromLinks([])['网站'].tags, DEFAULT_TAGS);
   assert.deepEqual(getFaviconCandidates('not a url'), []);
   assert.deepEqual(getFaviconCandidates('https://example.com/path'), [
-    'https://www.google.com/s2/favicons?domain=example.com&sz=128',
     'https://example.com/favicon.ico',
+    'https://www.google.com/s2/favicons?domain=example.com&sz=128',
     'https://icons.duckduckgo.com/ip3/example.com.ico',
   ]);
 });
