@@ -133,7 +133,7 @@ export const LinkCard = memo(function LinkCard({ link, onEdit, onDelete, onOpen 
                 className="size-10 rounded-lg object-contain bg-gray-50 p-1"
               />
             ) : (
-              <div className="size-10 rounded-lg bg-brand flex items-center justify-center font-bold text-[21px] text-white">
+              <div className="size-9 rounded-lg bg-brand flex items-center justify-center font-bold text-[21px] text-black">
                 {link.title.charAt(0).toUpperCase()}
               </div>
             )}
