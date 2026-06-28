@@ -62,7 +62,7 @@
 | [src/lib/linkMeta.js](../../src/lib/linkMeta.js) | `encodeLinkMeta` / `decodeLinkMeta` / `hydrateLink`（含 clicks 兜底）/ tag/classification/board 归一化 / `getFaviconCandidates`（多源）/ `sortClassificationsUncategorizedLast`（未分类置底） |
 | [src/lib/linkActions.js](../../src/lib/linkActions.js) | 纯函数：`applyTagDeleteLocally` / `applyClassificationDeleteLocally` / `normalizeSaveLinkData` / `getBoardOption` / `withBoardValues`。可被 Node 测试 |
 | [src/lib/supabaseClient.js](../../src/lib/supabaseClient.js) | 单例懒加载 Supabase client；模块加载即 `warmSupabase()`（preconnect + 预拉 SDK chunk，与 React 挂载并行）；`getSupabaseInitError()` 用于 UI 显式错误 |
-| [Supabase/schema.sql](../../Supabase/schema.sql) | `links` 表 schema（含 `clicks` 列 + 索引）+ 完全开放的 RLS 策略 |
+| [supabase/schema.sql](../../supabase/schema.sql) | `links` 表 schema（含 `clicks` 列 + 索引）+ 完全开放的 RLS 策略 |
 
 ## 3. 数据流（典型路径）
 

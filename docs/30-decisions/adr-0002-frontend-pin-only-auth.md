@@ -3,7 +3,7 @@
 - **状态**：Accepted
 - **日期**：2026-05-09（追溯记录）
 - **作者**：（追溯整理：Claude）
-- **关联**：[Supabase/schema.sql](../../Supabase/schema.sql)、[src/components/PinModal.jsx](../../src/components/PinModal.jsx)、[src/lib/constants.js](../../src/lib/constants.js)（`ADMIN_PIN`）、[README.md](../../README.md) "RLS 策略"
+- **关联**：[supabase/schema.sql](../../supabase/schema.sql)、[src/components/PinModal.jsx](../../src/components/PinModal.jsx)、[src/lib/constants.js](../../src/lib/constants.js)（`ADMIN_PIN`）、[README.md](../../README.md) "RLS 策略"
 
 ## 1. 背景
 

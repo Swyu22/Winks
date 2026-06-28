@@ -3,7 +3,7 @@
 - **状态**：Accepted
 - **日期**：2026-05-09（追溯记录，决策实际发生于 commit `4fe0d4a` `c934426` 期间）
 - **作者**：（追溯整理：Claude）
-- **关联**：[data-model.md](../10-spec/data-model.md)、[Supabase/schema.sql](../../Supabase/schema.sql)、[src/lib/linkMeta.js](../../src/lib/linkMeta.js)
+- **关联**：[data-model.md](../10-spec/data-model.md)、[supabase/schema.sql](../../supabase/schema.sql)、[src/lib/linkMeta.js](../../src/lib/linkMeta.js)
 
 ## 1. 背景
 
@@ -85,4 +85,4 @@
 ## 5. 备注
 
 - `LINK_META_PREFIX = "__WINKS_META__"`（[src/lib/constants.js](../../src/lib/constants.js)）选择 `__` 包裹，避免与 URL / 普通分类名碰撞。
-- schema 中 `category` 默认值已含一个完整 meta JSON（[Supabase/schema.sql:13](../../Supabase/schema.sql:13)），意味着即便有人绕过前端直接 `INSERT title, url`，也会得到合法的 meta payload。
+- schema 中 `category` 默认值已含一个完整 meta JSON（[supabase/schema.sql:13](../../supabase/schema.sql:13)），意味着即便有人绕过前端直接 `INSERT title, url`，也会得到合法的 meta payload。

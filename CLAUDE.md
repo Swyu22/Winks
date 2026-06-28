@@ -49,8 +49,10 @@ Winks.闪链 —— 开放协作式书签导航站（React + Vite + Supabase + T
 │       ├── linkMeta.js          # links.category meta 编码/解码/归一化
 │       ├── linkActions.js       # 纯函数 action helpers（删 tag/分类、保存归一化）
 │       └── supabaseClient.js    # Supabase 客户端懒加载
-├── Supabase/
-│   └── schema.sql               # `links` 表 + RLS 策略
+├── supabase/                    # Supabase CLI 工程（小写=CLI 约定）
+│   ├── config.toml              # CLI 配置（supabase init 生成）
+│   ├── migrations/              # 迁移历史（`supabase db push` 应用到远端）
+│   └── schema.sql               # `links` 表 + RLS 可读快照（与 baseline 迁移同源）
 └── public/                      # 静态资源
 ```
 

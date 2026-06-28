@@ -3,7 +3,7 @@
 - **状态**：Accepted
 - **日期**：2026-06-25
 - **作者**：Claude（Opus 4.8）
-- **关联**：[adr-0001](adr-0001-meta-encoding-in-category.md)、[data-model.md](../10-spec/data-model.md)、[Supabase/schema.sql](../../Supabase/schema.sql)、[src/lib/linkMeta.js](../../src/lib/linkMeta.js)、[src/hooks/useLinks.js](../../src/hooks/useLinks.js)
+- **关联**：[adr-0001](adr-0001-meta-encoding-in-category.md)、[data-model.md](../10-spec/data-model.md)、[supabase/schema.sql](../../supabase/schema.sql)、[src/lib/linkMeta.js](../../src/lib/linkMeta.js)、[src/hooks/useLinks.js](../../src/hooks/useLinks.js)
 
 ## 1. 背景
 
