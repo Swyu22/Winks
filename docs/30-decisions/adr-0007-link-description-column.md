@@ -57,3 +57,5 @@ description text null check (
 - 迁移文件：`supabase/migrations/20260713102800_add_link_descriptions.sql`。
 - 回填通过 36 个稳定 UUID 定位，避免标题或 URL 变化造成误更新。
 - 数据库迁移必须先于生产前端部署，并在迁移后核对列、约束、总数、空值和最大长度。
+- 2026-07-13 已在生产 SQL Editor 按迁移文件原文应用；验收结果为总数 36、已回填 36、未修剪 0、长度违规 0、最大长度 12，且 `links_description_check` 已生效。
+- 远端当时没有 `supabase_migrations.schema_migrations`；未人工创建或伪造迁移历史，执行方式与后续 CLI 收敛说明见 [ADR-0004](adr-0004-clicks-as-dedicated-column.md)。

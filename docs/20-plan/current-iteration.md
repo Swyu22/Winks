@@ -145,7 +145,7 @@
 - [x] 依赖：`npm audit fix` 非破坏性清除 Babel / js-yaml 可修项；生产依赖 0 漏洞。
 - [x] 发布：实现提交 `2ddac5e` 已推送；Quality workflow 成功；Pages `5c0aa593` built；生产 Supabase 200、28 张卡片、弹窗和首行对齐 smoke 通过。
 - [x] 防复发：`predeploy` 在 Supabase 模式缺少公开运行变量时失败关闭，Demo 发布须显式启用 `VITE_DEMO_MODE=true`。
-- [ ] **远端待执行**：`supabase db push` 应用 `20260713090000_links_clicks_nonnegative_check.sql`；本轮未直接修改生产数据库。
+- [x] **远端约束**：2026-07-13 通过 SQL Editor 按迁移原文应用 `20260713090000_links_clicks_nonnegative_check.sql`；负值记录 0，`CHECK ((clicks >= 0))` 已验证。
 - [ ] **人工决策**：开放 RLS / 前端明文 PIN 仍按 ADR-0002 保留；Vite 8 major 升级另开专题。
 
 ### P1-10：卡片一句话简介 + 复制按钮收敛 🚧 2026-07-13（Codex）
@@ -155,8 +155,9 @@
 - [x] 数据：生成 `20260713102800_add_link_descriptions.sql`，36 个生产 UUID 与迁移映射逐项比对，无遗漏或重复。
 - [x] UI：简介位于标题与标签之间；复制按钮改为左下角 28×28 纯图标，保留动态辅助名称、提示和焦点环。
 - [x] 对齐：首字母回退块由 36×36 统一为与 favicon 相同的 40×40；桌面同行坐标一致，390px 移动端所有验收卡同高 226px。
+- [x] 布局稳定性：移除会把离屏卡片暂按 310px 占位的 `content-visibility`；网站 28 张、页面 8 张在 390px 下均稳定为 226px，桌面同行标题/简介/标签坐标一致。
 - [x] 新增表单：简介可不填、可清空，`maxLength=15`；移动端 dialog 完整入视口。
-- [ ] 远端与发布：提交/push 后先应用并验证 Supabase 迁移，再部署 GitHub Pages 和生产 smoke。
+- [ ] 远端与发布：两条 Supabase 迁移及 36 条回填已验证；待推送布局稳定性修复、重新部署 GitHub Pages 并完成最终生产 smoke。
 
 ## 4. 待规划（P2）
 

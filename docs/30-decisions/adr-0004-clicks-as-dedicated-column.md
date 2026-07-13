@@ -53,13 +53,15 @@ ADR-0001 已确立把 `{classification, tags, board}` 编码进 `links.category`
 ### 数据约束
 
 - `clicks` 列与索引已于 2026-06-25 应用到线上。
-- 2026-07-13 新增 `links_clicks_nonnegative_check (clicks >= 0)`；迁移会先把任何历史负值归零，再创建约束。前端 `hydrateLink` 同步把负数、无穷值等非法缓存输入归零。
+- 2026-07-13 已应用 `links_clicks_nonnegative_check (clicks >= 0)`；迁移先把任何历史负值归零，再创建约束。验收查询返回负值记录 0 条，约束定义为 `CHECK ((clicks >= 0))`。前端 `hydrateLink` 同步把负数、无穷值等非法缓存输入归零。
 
 ## 5. 备注
 
 - 当前迁移文件：`supabase/migrations/20260713090000_links_clicks_nonnegative_check.sql`。
-- 按 Supabase CLI 迁移历史应用，禁止绕过迁移文件直接改远端：
+- 默认按 Supabase CLI 迁移历史应用：
 
   ```bash
   supabase db push
   ```
+
+- 本次 CLI 直连受远端 DNS/网络路径阻塞，且用户明确要求通过 SQL Editor 执行；因此按仓库迁移文件原文应用。远端当时不存在 `supabase_migrations.schema_migrations`，未人工伪造历史记录；仓库迁移文件继续作为 SSOT，未来首次成功的 `db push` 可幂等重放并建立历史。

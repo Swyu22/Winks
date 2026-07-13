@@ -86,7 +86,6 @@ export const LinkCard = memo(function LinkCard({ link, onEdit, onDelete, onOpen 
   return (
     <div
       className="group relative flex flex-col p-6 pb-16 min-h-[10rem] bg-white rounded-2xl border border-gray-100 transition-[border-color,box-shadow,transform] duration-300 hover:-translate-y-1 hover:border-brand-200 hover:shadow-[0_0_30px_rgba(255,208,0,0.25)]"
-      style={{ contentVisibility: 'auto', containIntrinsicSize: '220px' }}
     >
       <div className="absolute top-4 right-4 flex gap-2 opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 transition-opacity duration-200 z-10">
         <button

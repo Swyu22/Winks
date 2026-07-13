@@ -30,7 +30,7 @@ public.links (
 
 > `clicks` 是**顶层列**，承载点击计数（热门排序）。它**不**进 `category` meta，理由见
 > [ADR-0004](../30-decisions/adr-0004-clicks-as-dedicated-column.md)。列与索引已上线；
-> `20260713090000_links_clicks_nonnegative_check.sql` 为本轮新增约束迁移，待 `supabase db push` 应用远端。
+> `20260713090000_links_clicks_nonnegative_check.sql` 已于 2026-07-13 应用远端，并验证无负值且约束为 `CHECK ((clicks >= 0))`。
 
 > `description` 也是**顶层列**，承载卡片的一句话功能简介。它可空；非空值必须已去除首尾空白且为 1 至 15 个字符。选择独立列的理由见 [ADR-0007](../30-decisions/adr-0007-link-description-column.md)。
 
