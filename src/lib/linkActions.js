@@ -1,4 +1,11 @@
-import { uniqueClassifications, uniqueTags, normalizeName, parseTags, encodeLinkMeta } from './linkMeta.js';
+import {
+  encodeLinkMeta,
+  normalizeDescription,
+  normalizeName,
+  parseTags,
+  uniqueClassifications,
+  uniqueTags,
+} from './linkMeta.js';
 import { DEFAULT_CLASSIFICATIONS, DEFAULT_TAGS } from './constants.js';
 
 export const getBoardOption = (options, board) =>
@@ -75,10 +82,18 @@ export const normalizeSaveLinkData = (linkData, editingLink, activeBoard, active
   const safeClassification =
     normalizeName(linkData.category) || activeClassifications[0] || DEFAULT_CLASSIFICATIONS[0];
   const safeBoard = editingLink?.board || activeBoard;
-  const normalizedLinkData = { ...linkData, tags: safeTags, category: safeClassification, board: safeBoard };
+  const description = normalizeDescription(linkData.description);
+  const normalizedLinkData = {
+    ...linkData,
+    tags: safeTags,
+    category: safeClassification,
+    board: safeBoard,
+    description,
+  };
   const dbPayload = {
     title: normalizedLinkData.title,
     url: normalizedLinkData.url,
+    description: description || null,
     category: encodeLinkMeta(safeClassification, safeTags, safeBoard),
   };
   return { normalizedLinkData, dbPayload };

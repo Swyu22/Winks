@@ -123,7 +123,13 @@ describe('applyClassificationDeleteLocally', () => {
 
 describe('normalizeSaveLinkData', () => {
   it('deduplicates tags and returns encoded dbPayload', () => {
-    const linkData = { title: 'T', url: 'https://t.com', tags: ['开发', '开发'], category: '设计' };
+    const linkData = {
+      title: 'T',
+      url: 'https://t.com',
+      description: '  一句话简介  ',
+      tags: ['开发', '开发'],
+      category: '设计',
+    };
     const { normalizedLinkData, dbPayload } = normalizeSaveLinkData(
       linkData,
       null,
@@ -134,7 +140,23 @@ describe('normalizeSaveLinkData', () => {
     assert.deepEqual(normalizedLinkData.tags, ['开发']);
     assert.equal(normalizedLinkData.board, BOARD);
     assert.equal(normalizedLinkData.category, '设计');
+    assert.equal(normalizedLinkData.description, '一句话简介');
+    assert.equal(dbPayload.description, '一句话简介');
     assert.ok(typeof dbPayload.category === 'string');
+  });
+
+  it('stores an omitted or blank description as null', () => {
+    const linkData = { title: 'T', url: 'https://t.com', description: '   ', tags: ['开发'], category: '设计' };
+    const { normalizedLinkData, dbPayload } = normalizeSaveLinkData(
+      linkData,
+      null,
+      BOARD,
+      ['开发'],
+      ['设计'],
+    );
+
+    assert.equal(normalizedLinkData.description, '');
+    assert.equal(dbPayload.description, null);
   });
 
   it('falls back to activeTags[0] when no valid tags provided', () => {

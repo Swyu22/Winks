@@ -2,6 +2,7 @@ import {
   DEFAULT_BOARDS,
   DEFAULT_CLASSIFICATIONS,
   DEFAULT_TAGS,
+  LINK_DESCRIPTION_MAX_LENGTH,
   LINK_META_PREFIX,
 } from './constants.js';
 
@@ -47,6 +48,9 @@ export const toSafeHref = (url) => {
 };
 
 export const normalizeName = (value) => String(value || '').trim().replace(/^#+\s*/, '').trim();
+
+export const normalizeDescription = (value) =>
+  Array.from(String(value ?? '').trim()).slice(0, LINK_DESCRIPTION_MAX_LENGTH).join('');
 
 export const normalizeTag = (value) => normalizeName(value);
 
@@ -145,6 +149,7 @@ export const hydrateLink = (link) => {
     category: classification,
     board,
     clicks: normalizeClicks(link.clicks),
+    description: normalizeDescription(link.description),
   };
 };
 

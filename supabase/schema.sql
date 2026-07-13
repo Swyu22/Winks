@@ -30,6 +30,25 @@ alter table public.links
 alter table public.links
   add constraint links_category_check check (char_length(category) <= 2000);
 
+-- Optional single-line functional summary shown between title and tags.
+alter table public.links
+  add column if not exists description text;
+
+alter table public.links
+  drop constraint if exists links_description_check;
+
+alter table public.links
+  add constraint links_description_check check (
+    description is null
+    or (
+      description = btrim(description)
+      and char_length(description) between 1 and 15
+    )
+  );
+
+comment on column public.links.description is
+  'Optional single-line functional summary; trimmed and limited to 15 characters.';
+
 -- Per-link open counter (popularity sort). Volatile numeric data kept OUT of the
 -- category meta blob (see adr-0004); hydrateLink spreads it straight to the frontend.
 alter table public.links

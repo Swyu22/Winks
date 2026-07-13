@@ -9,6 +9,7 @@ import {
   formatTag,
   getFaviconCandidates,
   hydrateLink,
+  normalizeDescription,
   normalizeName,
   parseTags,
   sortClassificationsUncategorizedLast,
@@ -21,6 +22,13 @@ test('normalizes names, tags, and display labels', () => {
   assert.deepEqual(parseTags('设计, #开发，工具'), ['设计', '开发', '工具']);
   assert.deepEqual(uniqueTags(['设计', '#设计', ' 开发 ']), ['设计', '开发']);
   assert.equal(formatTag('设计'), '#设计');
+});
+
+test('normalizes descriptions to a trimmed 15-character display value', () => {
+  assert.equal(normalizeDescription('  AI图像工具  '), 'AI图像工具');
+  assert.equal(normalizeDescription(null), '');
+  assert.equal(normalizeDescription('1234567890123456'), '123456789012345');
+  assert.equal(Array.from(normalizeDescription('😀'.repeat(16))).length, 15);
 });
 
 test('encodes metadata into the category transport field', () => {
@@ -45,6 +53,12 @@ test('hydrates metadata payloads into the frontend link shape', () => {
   assert.equal(link.category, '页面分类');
   assert.deepEqual(link.tags, ['阅读']);
   assert.equal(link.board, '页面');
+  assert.equal(link.description, '');
+});
+
+test('hydrates nullable descriptions into the normalized frontend shape', () => {
+  assert.equal(hydrateLink({ id: '1', category: '开发', description: null }).description, '');
+  assert.equal(hydrateLink({ id: '2', category: '开发', description: '  一句话简介  ' }).description, '一句话简介');
 });
 
 test('keeps legacy category values compatible', () => {

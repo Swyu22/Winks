@@ -1,7 +1,7 @@
 # Data Model Spec — `links` 表与 `__WINKS_META__` 编码
 
 > 这是**前后端唯一合同**。任何改动都要先改本文件、再改代码。
-> 配套决策：[ADR-0001 meta-encoding-in-category](../30-decisions/adr-0001-meta-encoding-in-category.md)
+> 配套决策：[ADR-0001 meta-encoding-in-category](../30-decisions/adr-0001-meta-encoding-in-category.md)、[ADR-0007 link-description-column](../30-decisions/adr-0007-link-description-column.md)
 
 ## 1. 表结构（Supabase）
 
@@ -11,6 +11,12 @@ public.links (
   created_at  timestamptz   not null    default now(),
   title       text          not null    check (char_length(title) <= 200),
   url         text          not null    check (url ~* '^https?://'),
+  description text                     check (
+                                         description is null or (
+                                           description = btrim(description) and
+                                           char_length(description) between 1 and 15
+                                         )
+                                       ),
   category    text          not null    default '__WINKS_META__{...}'
                                         check (char_length(category) <= 2000),
   created_by  uuid          references auth.users(id) on delete set null
@@ -25,6 +31,8 @@ public.links (
 > `clicks` 是**顶层列**，承载点击计数（热门排序）。它**不**进 `category` meta，理由见
 > [ADR-0004](../30-decisions/adr-0004-clicks-as-dedicated-column.md)。列与索引已上线；
 > `20260713090000_links_clicks_nonnegative_check.sql` 为本轮新增约束迁移，待 `supabase db push` 应用远端。
+
+> `description` 也是**顶层列**，承载卡片的一句话功能简介。它可空；非空值必须已去除首尾空白且为 1 至 15 个字符。选择独立列的理由见 [ADR-0007](../30-decisions/adr-0007-link-description-column.md)。
 
 **RLS**：开放给 `anon` / `authenticated` 全部 CRUD（详见 ADR-0002）。
 
@@ -57,6 +65,7 @@ type Link = {
   id: string | number;
   title: string;
   url: string;          // 必含 http:// 或 https://
+  description: string;  // 0 至 15 个字符；数据库 null/缺失值 hydrate 为 ''
   category: string;     // 分类名（"未分类" 或自定义），不再含 meta 前缀
   tags: string[];       // 已规范化、去重、非空
   board: '网站' | '页面';
@@ -74,6 +83,7 @@ type Link = {
 | `DEFAULT_CLASSIFICATIONS` | `['未分类']` | [src/lib/constants.js](../../src/lib/constants.js) |
 | `DEFAULT_BOARDS` | `['网站', '页面']` | [src/lib/constants.js](../../src/lib/constants.js) |
 | `LINK_META_PREFIX` | `'__WINKS_META__'` | [src/lib/constants.js](../../src/lib/constants.js) |
+| `LINK_DESCRIPTION_MAX_LENGTH` | `15` | [src/lib/constants.js](../../src/lib/constants.js) |
 
 **重要**：`DEFAULT_BOARDS` 是**封闭集合**。`isKnownBoard` 校验任何外部值；不在集合内的 board 会被静默归一为 `DEFAULT_BOARDS[0]`（即 `'网站'`）。
 
@@ -100,7 +110,8 @@ type Link = {
 2. **tags**：`metadata.tags` 优先；否则 fallback 到 `link.tags ?? link.category` 的 legacy 解析；空集合补 `DEFAULT_TAGS[0]`。
 3. **classification**：`metadata.classification` 优先；否则若 `category` 是单值（不含中英文逗号）则当作分类名；否则用 `DEFAULT_CLASSIFICATIONS[0]`。
 4. **board**：`metadata.board` ∩ `DEFAULT_BOARDS`；否则用 `DEFAULT_BOARDS[0]`。
-5. **clicks**：转为有限数值、向下取整并限制为 `0...Number.MAX_SAFE_INTEGER`；负数、无穷值与非法值统一为 0。
+5. **description**：转为字符串、去除首尾空白并限制为前 15 个 Unicode 字符；`null`、缺失值和空白统一为 `''`。
+6. **clicks**：转为有限数值、向下取整并限制为 `0...Number.MAX_SAFE_INTEGER`；负数、无穷值与非法值统一为 0。
 
 **调用点**（必须保证经过 hydrate）：
 - 初始 `fetchLinks` 的 `data.map`
@@ -115,6 +126,7 @@ type Link = {
 |---|---|
 | `title` | 必填、`length <= 200` |
 | `url` | 必填、必须以 `http://` 或 `https://` 起始（前端会自动补 `https://`） |
+| `description` | 选填；前端去除首尾空白；空值存 `null`；非空长度 1 至 15 |
 | `category` | 必填、`length <= 2000` |
 | `tags` | 至少 1 个非空字符串；元素去重；前端展示加 `#` 前缀但**存储不含** |
 | `board` | 必须 ∈ `DEFAULT_BOARDS` |
@@ -125,6 +137,7 @@ type Link = {
 | 类型变更 | 是否破坏兼容 | 处理 |
 |---|---|---|
 | 在 meta JSON 新增字段 | 兼容（旧客户端忽略） | 默认值兜底，hydrate 增加分支 |
+| 新增可空顶层展示字段 | 兼容 | 新迁移 + hydrate 默认值 + 缓存版本升级 |
 | 修改 meta 字段语义 | **破坏** | 需要数据迁移 + 新 ADR |
 | 新增 board | 破坏（旧客户端会归一为默认） | 同步改 `DEFAULT_BOARDS`，且评估存量 |
 | 改前缀 `__WINKS_META__` | **强破坏** | 不允许，除非全量 rewrite |

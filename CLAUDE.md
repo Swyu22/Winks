@@ -45,9 +45,9 @@ Winks.闪链 —— 开放协作式书签导航站（React + Vite + Supabase + T
 │   ├── main.jsx                 # React 入口
 │   ├── index.css                # Tailwind 入口
 │   └── lib/
-│       ├── constants.js         # 默认集合、版本、运行模式、ADMIN_PIN、ALL_FILTER、PIN_ACTIONS
-│       ├── linkMeta.js          # links.category meta 编码/解码/归一化
-│       ├── linkActions.js       # 纯函数 action helpers（删 tag/分类、保存归一化）
+│       ├── constants.js         # 默认集合、简介长度、版本、运行模式与交互常量
+│       ├── linkMeta.js          # category meta 与 description/clicks/legacy 读归一化
+│       ├── linkActions.js       # 纯函数 action helpers（删 tag/分类、保存载荷归一化）
 │       ├── linksCache.js         # localStorage SWR 缓存读写
 │       └── supabaseClient.js    # Supabase 客户端懒加载
 ├── supabase/                    # Supabase CLI 工程（小写=CLI 约定）
@@ -90,7 +90,8 @@ Winks.闪链 —— 开放协作式书签导航站（React + Vite + Supabase + T
 2. **`DEFAULT_BOARDS` 是硬编码**（`['网站', '页面']`），位置在 [src/lib/constants.js](src/lib/constants.js)，增删 board 需要前后端同步。
 3. **PIN `5185` 硬编码在前端常量**（[src/lib/constants.js](src/lib/constants.js)，由 [src/components/PinModal.jsx](src/components/PinModal.jsx) 使用），后端 RLS 完全开放——这是「协作式弱保护」选型；编辑、删链接、删分类和删标签都必须走 PIN，详见 [adr-0002](docs/30-decisions/adr-0002-frontend-pin-only-auth.md)。
 4. **`hydrateLink` 必须在所有读路径调用一次**（fetch / insert.select / update.select），实现位于 [src/lib/linkMeta.js](src/lib/linkMeta.js)，用以兼容 legacy 数据。
-5. **Vite `base: './'`**——便于 GitHub Pages 子路径，禁止改成绝对路径。
+5. **`description` 是独立可空列**：非空值须 trim 且最多 15 字；前端缺省为 `''`、保存空值写 `null`，禁止塞入 `category` meta。详见 [data-model](docs/10-spec/data-model.md) 与 [adr-0007](docs/30-decisions/adr-0007-link-description-column.md)。
+6. **Vite `base: './'`**——便于 GitHub Pages 子路径，禁止改成绝对路径。
 
 ## 7. 常用命令
 

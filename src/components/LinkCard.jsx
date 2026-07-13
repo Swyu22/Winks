@@ -1,5 +1,5 @@
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Copy, Pencil, Trash2 } from 'lucide-react';
+import { Check, Copy, Pencil, Trash2 } from 'lucide-react';
 import { formatTag, getFaviconCandidates, toSafeHref } from '../lib/linkMeta.js';
 
 export const LinkCard = memo(function LinkCard({ link, onEdit, onDelete, onOpen }) {
@@ -86,7 +86,7 @@ export const LinkCard = memo(function LinkCard({ link, onEdit, onDelete, onOpen 
   return (
     <div
       className="group relative flex flex-col p-6 pb-16 min-h-[10rem] bg-white rounded-2xl border border-gray-100 transition-[border-color,box-shadow,transform] duration-300 hover:-translate-y-1 hover:border-brand-200 hover:shadow-[0_0_30px_rgba(255,208,0,0.25)]"
-      style={{ contentVisibility: 'auto', containIntrinsicSize: '160px' }}
+      style={{ contentVisibility: 'auto', containIntrinsicSize: '220px' }}
     >
       <div className="absolute top-4 right-4 flex gap-2 opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 transition-opacity duration-200 z-10">
         <button
@@ -132,7 +132,7 @@ export const LinkCard = memo(function LinkCard({ link, onEdit, onDelete, onOpen 
                 className="size-10 rounded-lg object-contain bg-gray-50 p-1"
               />
             ) : (
-              <div aria-hidden="true" className="size-9 rounded-lg bg-brand flex items-center justify-center font-bold text-[21px] text-white">
+              <div aria-hidden="true" className="size-10 rounded-lg bg-brand flex items-center justify-center font-bold text-[21px] text-white">
                 {link.title.trim().charAt(0).toUpperCase() || '?'}
               </div>
             )}
@@ -143,6 +143,9 @@ export const LinkCard = memo(function LinkCard({ link, onEdit, onDelete, onOpen 
           <h3 className="font-semibold text-gray-800 truncate pr-4 text-lg group-hover:text-brand-text transition-colors">
             {link.title}
           </h3>
+          <p className="mt-1 min-h-5 truncate text-sm leading-5 text-gray-500">
+            {link.description}
+          </p>
           <div className="mt-2 flex flex-wrap gap-1.5">
             {link.tags.map((tag) => (
               <span key={`${link.id}-${tag}`} className="inline-block text-xs font-medium text-gray-500 bg-gray-50 px-2 py-0.5 rounded-full">
@@ -158,15 +161,18 @@ export const LinkCard = memo(function LinkCard({ link, onEdit, onDelete, onOpen 
         onClick={handleCopy}
         aria-label={copied ? `已复制链接：${link.title}` : `复制链接：${link.title}`}
         aria-live="polite"
-        className={`absolute left-6 bottom-4 h-8 px-3 rounded-lg text-xs font-bold border transition-colors flex items-center gap-1 ${
+        className={`absolute left-6 bottom-4 flex size-7 items-center justify-center rounded-lg border transition-colors ${
           copied
             ? 'bg-green-50 text-green-600 border-green-200'
             : 'bg-white text-gray-500 border-gray-100 hover:border-brand-200 hover:text-brand-text'
         }`}
-        title="复制链接"
+        title={copied ? '链接已复制' : '复制链接'}
       >
-        <Copy aria-hidden="true" className="size-3.5" />
-        {copied ? '已复制' : '复制链接'}
+        {copied ? (
+          <Check aria-hidden="true" className="size-3.5" />
+        ) : (
+          <Copy aria-hidden="true" className="size-3.5" />
+        )}
       </button>
     </div>
   );

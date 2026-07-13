@@ -1,6 +1,10 @@
 import { useState } from 'react';
 import { Loader2, X } from 'lucide-react';
-import { DEFAULT_CLASSIFICATIONS, DEFAULT_TAGS } from '../lib/constants.js';
+import {
+  DEFAULT_CLASSIFICATIONS,
+  DEFAULT_TAGS,
+  LINK_DESCRIPTION_MAX_LENGTH,
+} from '../lib/constants.js';
 import { formatTag, normalizeName, normalizeTag, toSafeHref, uniqueTags } from '../lib/linkMeta.js';
 import { ModalDialog } from './ModalDialog.jsx';
 import { TaxonomyEditor } from './TaxonomyEditor.jsx';
@@ -39,6 +43,7 @@ const createInitialFormData = (initialData, tags, classifications) => {
   if (initialData) {
     return {
       title: initialData.title,
+      description: initialData.description || '',
       url: initialData.url,
       tags: uniqueTags(initialData.tags),
       category: normalizeName(initialData.category) || classifications[0] || DEFAULT_CLASSIFICATIONS[0],
@@ -47,6 +52,7 @@ const createInitialFormData = (initialData, tags, classifications) => {
 
   return {
     title: '',
+    description: '',
     url: '',
     tags: [tags[0] || DEFAULT_TAGS[0]],
     category: classifications[0] || DEFAULT_CLASSIFICATIONS[0],
@@ -180,6 +186,23 @@ const LinkModalContent = ({
               className="w-full h-12 px-4 rounded-xl bg-gray-50 border-transparent focus:bg-white focus:border-brand focus:ring-4 focus:ring-brand-100 transition-colors outline-none font-medium text-gray-800 placeholder-gray-500"
               value={safeFormData.title}
               onChange={(e) => setFormData((prev) => ({ ...prev, title: e.target.value }))}
+            />
+          </div>
+
+          <div>
+            <label htmlFor="link-description-input" className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-1.5 ml-1">
+              一句话简介（选填）
+            </label>
+            <input
+              id="link-description-input"
+              name="description"
+              type="text"
+              maxLength={LINK_DESCRIPTION_MAX_LENGTH}
+              autoComplete="off"
+              placeholder="例如：AI图像创作工具"
+              className="w-full h-12 px-4 rounded-xl bg-gray-50 border-transparent focus:bg-white focus:border-brand focus:ring-4 focus:ring-brand-100 transition-colors outline-none font-medium text-gray-800 placeholder-gray-500"
+              value={safeFormData.description}
+              onChange={(e) => setFormData((prev) => ({ ...prev, description: e.target.value }))}
             />
           </div>
 
