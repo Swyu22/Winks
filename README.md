@@ -22,7 +22,7 @@ npm run dev
 
 如果你希望数据持久化，请按以下步骤：
 
-1. 在 Supabase 项目中执行 `supabase/schema.sql` 的 SQL。
+1. 用 Supabase CLI 关联项目并执行 `supabase db push`，按时间顺序应用 `supabase/migrations/`。
 2. 复制 `.env.example` 为 `.env`，并填写 Supabase 配置：
 
 ```bash
@@ -53,14 +53,16 @@ supabase link --project-ref ukwuafaoifwdkpvedvih  # 关联远端 Winks 项目（
 supabase db push                                  # 把 supabase/migrations/ 应用到远端
 ```
 
-- 迁移文件在 `supabase/migrations/`；`supabase/schema.sql` 是同源的可读快照。
-- baseline 迁移完全幂等（`CREATE/ALTER ... IF [NOT] EXISTS`），对已建好的远端 `db push` 是安全空操作，仅登记迁移历史。
+- 迁移文件在 `supabase/migrations/`；`supabase/schema.sql` 是所有迁移结果的可读快照，不直接替代迁移历史。
+- baseline 迁移记录初始 schema；后续改动只新增迁移文件，不修改已应用迁移。
 - 新增 schema 改动：`supabase migration new <name>` 写 SQL → `supabase db push`，并同步更新 `schema.sql` 快照。
+- 一旦采用迁移历史，不要再通过远端 SQL Editor / Table Editor 直接改 schema，否则会造成迁移历史漂移。
 
 ## 部署到 GitHub Pages
 
 ```bash
-npm test
-npm run build
+npm run verify
 npm run deploy
 ```
+
+`npm run deploy` 的 `predeploy` 也会自动执行测试、lint 与生产构建。PR 和 `main` push 由 `.github/workflows/quality.yml` 执行同一套检查。

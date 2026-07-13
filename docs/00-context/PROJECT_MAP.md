@@ -31,7 +31,7 @@
 
 | 文件 | 职责 | 不该做的事 |
 |---|---|---|
-| [index.html](../../index.html) | 挂载 #root，加载 main.jsx；引用 `public/favicon.svg`（黑配黄静态资源） | 不要写死部署绝对路径（保持 Vite `base: './'`） |
+| [index.html](../../index.html) | 挂载 #root，加载 main.jsx；引用 `public/favicon.svg`（品牌黄 + 白色品牌闪电） | 不要写死部署绝对路径（保持 Vite `base: './'`） |
 | [src/main.jsx](../../src/main.jsx) | React StrictMode + ReactDOM root；导入 3 套 @fontsource-variable 自托管字体 | 不放业务逻辑 |
 | [src/index.css](../../src/index.css) | Tailwind 入口 + **设计 token `:root`**（品牌色阶 `--brand-*`、`--brand-foreground` 黑配黄、`--brand-text` 白底金字、字体栈 `--font-sans/display/mono`） | 不写业务样式（用 Tailwind utility）；token 是颜色单一事实源，见 [adr-0005](../30-decisions/adr-0005-brand-tokens-and-self-hosted-fonts.md) |
 | [tailwind.config.js](../../tailwind.config.js) | 把 `:root` token 映射成 `bg-brand`/`text-brand`/`font-display` 等类（`colors.brand` + `fontFamily`） | hex 变量不支持 `/opacity` 修饰，彩色阴影用字面 `rgba(255,208,0,…)` |
@@ -52,24 +52,27 @@
 | [src/components/LinkModal.jsx](../../src/components/LinkModal.jsx) | 新增/编辑表单、标签/分类就地增删入口 | 不直接写数据库 |
 | [src/components/CategorySidebar.jsx](../../src/components/CategorySidebar.jsx) | 桌面侧栏 + `MobileCategoryBar` 移动端分类切换（渲染 `displayClassifications`，未分类置底） | 不持有分类数据源 |
 | [src/components/LinkGridSkeleton.jsx](../../src/components/LinkGridSkeleton.jsx) | 首屏加载骨架（镜像 LinkCard 盒型，替代裸 spinner） | 不放业务状态 |
+| [src/components/ModalDialog.jsx](../../src/components/ModalDialog.jsx) | 原生 `<dialog>` 模态焦点边界与关闭后焦点恢复 | 不持有业务状态 |
+| [src/components/TaxonomyEditor.jsx](../../src/components/TaxonomyEditor.jsx) | 分类/标签选择、删除和就地新增的共享 UI | 不修改 links 或调用 Supabase |
 
 ### 2.4 状态与数据层
 
 | 文件 | 职责 |
 |---|---|
-| [src/hooks/useLinks.js](../../src/hooks/useLinks.js) | links / boardOptions / filters / modal state；Supabase CRUD；PIN 流程编排；localStorage SWR 缓存（秒出 + 后台 revalidate）；`handleOpenLink` 点击计数（乐观自增 + `persistClick` 容错持久化）；`filteredLinks` 按 clicks 降序排序。内部 `runBatchUpdate` / `runSingleMutation` 负责 demo/Supabase 分支 |
-| [src/lib/constants.js](../../src/lib/constants.js) | `DEFAULT_*`、`LINK_META_PREFIX`、`APP_VERSION`、`USE_DEMO_MODE`、`ADMIN_PIN`、`ALL_FILTER`、`PIN_ACTIONS`、`LINKS_CACHE_KEY` |
+| [src/hooks/useLinks.js](../../src/hooks/useLinks.js) | links / boardOptions / filters / modal state；Supabase CRUD；PIN 流程编排；SWR 缓存接线；点击计数与热度排序。内部 `runBatchUpdate` / `runSingleMutation` 负责 demo/Supabase 分支 |
+| [src/lib/constants.js](../../src/lib/constants.js) | `DEFAULT_*`、`LINK_META_PREFIX`、`APP_VERSION`、`USE_DEMO_MODE`、`ADMIN_PIN`、`ALL_FILTER`、含删标签的 `PIN_ACTIONS`、`LINKS_CACHE_KEY` |
 | [src/lib/linkMeta.js](../../src/lib/linkMeta.js) | `encodeLinkMeta` / `decodeLinkMeta` / `hydrateLink`（含 clicks 兜底）/ tag/classification/board 归一化 / `getFaviconCandidates`（多源）/ `sortClassificationsUncategorizedLast`（未分类置底） |
 | [src/lib/linkActions.js](../../src/lib/linkActions.js) | 纯函数：`applyTagDeleteLocally` / `applyClassificationDeleteLocally` / `normalizeSaveLinkData` / `getBoardOption` / `withBoardValues`。可被 Node 测试 |
+| [src/lib/linksCache.js](../../src/lib/linksCache.js) | localStorage 缓存读写；空列表覆盖旧快照；读取路径统一 `hydrateLink` |
 | [src/lib/supabaseClient.js](../../src/lib/supabaseClient.js) | 单例懒加载 Supabase client；模块加载即 `warmSupabase()`（preconnect + 预拉 SDK chunk，与 React 挂载并行）；`getSupabaseInitError()` 用于 UI 显式错误 |
-| [supabase/schema.sql](../../supabase/schema.sql) | `links` 表 schema（含 `clicks` 列 + 索引）+ 完全开放的 RLS 策略 |
+| [supabase/schema.sql](../../supabase/schema.sql) | `links` 表 schema（含 clicks 非负约束 + 索引）+ 完全开放的 RLS 策略；当前迁移结果快照 |
 
 ## 3. 数据流（典型路径）
 
 ### 3.1 加载（fetch，stale-while-revalidate）
 
 ```
-useState 初始化 → readLinksCache()（命中则秒出缓存内容，loading=false）
+useState 初始化 → linksCache.readLinksCache()（含已缓存空列表；命中则 loading=false）
 useLinks.useEffect → fetchLinks（不再 setLoading(true)，避免覆盖已渲染内容）
   → resolveSupabaseClient（demo 跳过；客户端已被 supabaseClient 模块预热）
   → client.from('links').select('*').order('created_at', desc)
@@ -114,6 +117,9 @@ src/
 │   ├── PinModal.jsx
 │   ├── LinkCard.jsx
 │   ├── LinkModal.jsx
+│   ├── LinkGridSkeleton.jsx
+│   ├── ModalDialog.jsx
+│   ├── TaxonomyEditor.jsx
 │   ├── CategorySidebar.jsx    # 桌面侧栏 + MobileCategoryBar
 │   └── Logo.jsx
 ├── hooks/
@@ -124,6 +130,8 @@ src/
 │   ├── linkActions.test.js
 │   ├── linkMeta.js
 │   ├── linkMeta.test.js
+│   ├── linksCache.js
+│   ├── linksCache.test.js
 │   └── supabaseClient.js
 └── ...
 ```

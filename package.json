@@ -9,11 +9,12 @@
   },
   "scripts": {
     "dev": "vite --host 127.0.0.1 --port 4173",
-    "test": "node --test src/lib/linkMeta.test.js src/lib/linkActions.test.js",
+    "test": "node --test src/lib/linkMeta.test.js src/lib/linkActions.test.js src/lib/linksCache.test.js",
     "build": "vite build",
     "lint": "eslint .",
+    "verify": "npm test && npm run lint && npm run build",
     "preview": "vite preview",
-    "predeploy": "npm run build",
+    "predeploy": "npm run verify",
     "deploy": "gh-pages -d dist"
   },
   "dependencies": {

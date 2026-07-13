@@ -42,7 +42,7 @@ ADR-0001 已确立把 `{classification, tags, board}` 编码进 `links.category`
 ### 必须遵守
 
 1. `clicks` 是 `links` 表的**顶层列**，**禁止**写进 `category` meta JSON。
-2. 任何读路径仍经 `hydrateLink`，它保证 `clicks` 恒为数字（缺省 0）。
+2. 任何读路径仍经 `hydrateLink`，它保证 `clicks` 恒为非负整数（非法值缺省 0）。
 3. 自增走独立写路径（`useLinks` 的 `persistClick`），**不**经 `encodeLinkMeta`，**不**触发 PIN 流程（点击=公开只读动作）。
 
 ### 并发与威胁模型
@@ -50,16 +50,16 @@ ADR-0001 已确立把 `{classification, tags, board}` 编码进 `links.category`
 - 自增当前是「读本地值 → +1 → update」，开放 RLS 下并发点击可能丢更新。本项目流量低，计数本就可被任意访客伪造（与 ADR-0002 弱保护一致），**接受**该误差。
 - 如未来需要精确计数，升级为 Postgres 原子 RPC `update ... set clicks = clicks + 1`（避免回传当前值），不影响本 ADR 的列设计。
 
-### 降级（迁移未应用时）
+### 数据约束
 
-- 若线上库尚未执行 `ALTER TABLE`：`select('*')` 不含 clicks → hydrate 兜底为 0 → 排序退化为按 `created_at`；自增 `update({clicks})` 报错被 `persistClick` 吞掉（仅 `console.warn`），打开链接不受影响。即「静默失效、绝不报错」，执行迁移后自动生效。
+- `clicks` 列与索引已于 2026-06-25 应用到线上。
+- 2026-07-13 新增 `links_clicks_nonnegative_check (clicks >= 0)`；迁移会先把任何历史负值归零，再创建约束。前端 `hydrateLink` 同步把负数、无穷值等非法缓存输入归零。
 
 ## 5. 备注
 
-- 迁移 SQL（在 Supabase SQL Editor 执行一次，幂等）：
+- 当前迁移文件：`supabase/migrations/20260713090000_links_clicks_nonnegative_check.sql`。
+- 按 Supabase CLI 迁移历史应用，禁止绕过迁移文件直接改远端：
 
-  ```sql
-  alter table public.links
-    add column if not exists clicks integer not null default 0;
-  create index if not exists links_clicks_idx on public.links (clicks desc);
+  ```bash
+  supabase db push
   ```

@@ -6,13 +6,12 @@ import {
   useMemo,
   useState,
 } from 'react';
-import { getSupabaseClient, getSupabaseInitError } from '../lib/supabaseClient';
+import { getSupabaseClient, getSupabaseInitError } from '../lib/supabaseClient.js';
 import {
   ALL_FILTER,
   DEFAULT_BOARDS,
   DEFAULT_CLASSIFICATIONS,
   DEFAULT_TAGS,
-  LINKS_CACHE_KEY,
   PIN_ACTIONS,
   USE_DEMO_MODE,
 } from '../lib/constants.js';
@@ -33,34 +32,11 @@ import {
   normalizeSaveLinkData,
   withBoardValues,
 } from '../lib/linkActions.js';
+import { readLinksCache, writeLinksCache } from '../lib/linksCache.js';
 
 // Link state and Supabase CRUD orchestration live here; UI components stay data-source agnostic.
 const supabaseInitError = getSupabaseInitError(USE_DEMO_MODE);
-
-// Stale-while-revalidate cache: paint the last-known links instantly on repeat visits,
-// then revalidate from Supabase in the background. Cached values are already-hydrated
-// links (clicks included). No-op in demo mode or when localStorage is unavailable.
-const readLinksCache = () => {
-  if (USE_DEMO_MODE || typeof localStorage === 'undefined') return null;
-  try {
-    const parsed = JSON.parse(localStorage.getItem(LINKS_CACHE_KEY));
-    if (!Array.isArray(parsed) || parsed.length === 0) return null;
-    // hydrateLink is idempotent on already-hydrated rows; re-running it keeps the
-    // "every read path goes through hydrateLink" invariant even for cached data.
-    return parsed.map(hydrateLink);
-  } catch {
-    return null;
-  }
-};
-
-const writeLinksCache = (links) => {
-  if (USE_DEMO_MODE || typeof localStorage === 'undefined' || links.length === 0) return;
-  try {
-    localStorage.setItem(LINKS_CACHE_KEY, JSON.stringify(links));
-  } catch {
-    // quota / serialization errors are non-fatal for a cache
-  }
-};
+const linksCacheStorage = USE_DEMO_MODE || typeof localStorage === 'undefined' ? null : localStorage;
 
 const createDemoLinks = () => [
   {
@@ -103,30 +79,33 @@ const createDemoLinks = () => [
 export const useLinks = () => {
   // Prime from the SWR cache so repeat visits render real content immediately
   // instead of a spinner; fetchLinks still revalidates and stays authoritative.
-  const [links, setLinks] = useState(() => readLinksCache() ?? []);
+  const [links, setLinks] = useState(() => readLinksCache(linksCacheStorage) ?? []);
   const [activeBoard, setActiveBoard] = useState(DEFAULT_BOARDS[0]);
   const [boardOptions, setBoardOptions] = useState(() => {
-    const cached = readLinksCache();
+    const cached = readLinksCache(linksCacheStorage);
     return cached ? buildBoardOptionsFromLinks(cached) : createDefaultBoardOptions();
   });
   const [tagFilter, setTagFilter] = useState(ALL_FILTER);
   const [classificationFilter, setClassificationFilter] = useState(ALL_FILTER);
-  const [loading, setLoading] = useState(() => readLinksCache() === null);
+  const [loading, setLoading] = useState(() => readLinksCache(linksCacheStorage) === null);
   const [fatalError, setFatalError] = useState(supabaseInitError);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingLink, setEditingLink] = useState(null);
   const [isPinOpen, setIsPinOpen] = useState(false);
   const [pendingAction, setPendingAction] = useState(null);
 
-  const activeOptions = getBoardOption(boardOptions, activeBoard);
+  const activeOptions = useMemo(
+    () => getBoardOption(boardOptions, activeBoard),
+    [activeBoard, boardOptions],
+  );
   const activeTags = activeOptions.tags;
   // activeClassifications keeps 未分类 FIRST — it feeds business logic (delete-classification
   // orphan fallback, new-link default category). displayClassifications forces 未分类 LAST and is
   // used ONLY for sidebar rendering, so the "未分类 置底" rule never leaks into that logic.
   const activeClassifications = activeOptions.classifications;
   const displayClassifications = useMemo(
-    () => sortClassificationsUncategorizedLast(activeClassifications),
-    [activeClassifications],
+    () => sortClassificationsUncategorizedLast(activeOptions.classifications),
+    [activeOptions.classifications],
   );
   const deferredTagFilter = useDeferredValue(tagFilter);
   const deferredClassificationFilter = useDeferredValue(classificationFilter);
@@ -202,7 +181,7 @@ export const useLinks = () => {
 
   // Persist the latest links (including click bumps and edits) to the SWR cache.
   useEffect(() => {
-    writeLinksCache(links);
+    writeLinksCache(linksCacheStorage, links);
   }, [links]);
 
   // On partial failure (some rows succeeded remotely, others didn't), we resync via fetchLinks
@@ -259,9 +238,10 @@ export const useLinks = () => {
         return true;
       }
       // No error but no row returned (e.g. updating a row another client already deleted under
-      // the open RLS): resync from server so local state matches reality instead of diverging.
+      // the open RLS): report failure and resync so the modal cannot claim a false success.
+      showSupabaseError(actionName, new Error('目标记录不存在或未返回保存结果，请刷新后重试。'));
       await fetchLinks();
-      return true;
+      return false;
     },
     [fetchLinks, resolveSupabaseClient, showSupabaseError],
   );
@@ -469,14 +449,14 @@ export const useLinks = () => {
         linkData,
         editingLink,
         activeBoard,
-        activeTags,
-        activeClassifications,
+        activeOptions.tags,
+        activeOptions.classifications,
       );
       return editingLink
         ? executeUpdateLink(normalizedLinkData, dbPayload)
         : executeCreateLink(normalizedLinkData, dbPayload);
     },
-    [activeBoard, activeClassifications, activeTags, editingLink, executeCreateLink, executeUpdateLink],
+    [activeBoard, activeOptions.classifications, activeOptions.tags, editingLink, executeCreateLink, executeUpdateLink],
   );
 
   const handlePinSuccess = useCallback(async () => {
@@ -484,6 +464,8 @@ export const useLinks = () => {
     const { type, payload } = pendingAction;
     if (type === PIN_ACTIONS.DELETE_LINK) {
       await executeDeleteLink(payload);
+    } else if (type === PIN_ACTIONS.DELETE_TAG) {
+      await executeDeleteTag(payload);
     } else if (type === PIN_ACTIONS.EDIT_LINK) {
       setEditingLink(payload);
       setIsModalOpen(true);
@@ -491,7 +473,7 @@ export const useLinks = () => {
       await executeDeleteClassification(payload);
     }
     setPendingAction(null);
-  }, [executeDeleteClassification, executeDeleteLink, pendingAction]);
+  }, [executeDeleteClassification, executeDeleteLink, executeDeleteTag, pendingAction]);
 
   const handleSelectTagFilter = useCallback((nextTag) => {
     startTransition(() => {
@@ -517,6 +499,13 @@ export const useLinks = () => {
   const handleDeleteClassificationRequest = useCallback(
     (classification) => {
       requestAuth({ type: PIN_ACTIONS.DELETE_CLASSIFICATION, payload: classification });
+    },
+    [requestAuth],
+  );
+
+  const handleDeleteTagRequest = useCallback(
+    (tag) => {
+      requestAuth({ type: PIN_ACTIONS.DELETE_TAG, payload: tag });
     },
     [requestAuth],
   );
@@ -577,13 +566,13 @@ export const useLinks = () => {
     displayClassifications,
     executeAddClassification,
     executeAddTag,
-    executeDeleteTag,
     fatalError,
     filteredLinks,
     handleCloseLinkModal,
     handleClosePinModal,
     handleDeleteClassificationRequest,
     handleDeleteLinkRequest,
+    handleDeleteTagRequest,
     handleEditLinkRequest,
     handleOpenCreateModal,
     handleOpenLink,

@@ -119,6 +119,12 @@ export const decodeLinkMeta = (rawValue) => {
   }
 };
 
+const normalizeClicks = (value) => {
+  const numericValue = Number(value);
+  if (!Number.isFinite(numericValue) || numericValue <= 0) return 0;
+  return Math.min(Math.trunc(numericValue), Number.MAX_SAFE_INTEGER);
+};
+
 export const hydrateLink = (link) => {
   const metadata = decodeLinkMeta(link.category);
   const rawCategory = normalizeName(link.category);
@@ -138,7 +144,7 @@ export const hydrateLink = (link) => {
     tags,
     category: classification,
     board,
-    clicks: Number(link.clicks) || 0,
+    clicks: normalizeClicks(link.clicks),
   };
 };
 

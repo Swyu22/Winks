@@ -13,10 +13,10 @@ Winks.闪链 —— 开放协作式书签导航站（React + Vite + Supabase + T
 
 | 类别 | 选型 | 版本 |
 |---|---|---|
-| 框架 | React | 18.2 |
-| 构建 | Vite | 5.x |
-| 样式 | Tailwind CSS | 3.3 |
-| 后端 | Supabase（仅 `links` 表） | `@supabase/supabase-js` ^2.39 |
+| 框架 | React | ^18.2（lock 18.3.1） |
+| 构建 | Vite | ^5（lock 5.4.21） |
+| 样式 | Tailwind CSS | ^3.3（lock 3.4.19） |
+| 后端 | Supabase（仅 `links` 表） | `@supabase/supabase-js` ^2.39（lock 2.96.0） |
 | 图标 | lucide-react | ^0.294 |
 | 部署 | GitHub Pages（`gh-pages`） | — |
 | Lint | ESLint + react / react-hooks / react-refresh | ^8.55 |
@@ -48,11 +48,12 @@ Winks.闪链 —— 开放协作式书签导航站（React + Vite + Supabase + T
 │       ├── constants.js         # 默认集合、版本、运行模式、ADMIN_PIN、ALL_FILTER、PIN_ACTIONS
 │       ├── linkMeta.js          # links.category meta 编码/解码/归一化
 │       ├── linkActions.js       # 纯函数 action helpers（删 tag/分类、保存归一化）
+│       ├── linksCache.js         # localStorage SWR 缓存读写
 │       └── supabaseClient.js    # Supabase 客户端懒加载
 ├── supabase/                    # Supabase CLI 工程（小写=CLI 约定）
 │   ├── config.toml              # CLI 配置（supabase init 生成）
 │   ├── migrations/              # 迁移历史（`supabase db push` 应用到远端）
-│   └── schema.sql               # `links` 表 + RLS 可读快照（与 baseline 迁移同源）
+│   └── schema.sql               # `links` 表 + RLS 可读快照（所有迁移的当前结果）
 └── public/                      # 静态资源
 ```
 
@@ -87,7 +88,7 @@ Winks.闪链 —— 开放协作式书签导航站（React + Vite + Supabase + T
 
 1. **`category` 字段双重身份**：Supabase `links.category` 既是「分类」字段，又承载 `__WINKS_META__{json}` 编码的 `{classification, tags, board}` 三元组。详见 [docs/10-spec/data-model.md](docs/10-spec/data-model.md) 与 [adr-0001](docs/30-decisions/adr-0001-meta-encoding-in-category.md)。
 2. **`DEFAULT_BOARDS` 是硬编码**（`['网站', '页面']`），位置在 [src/lib/constants.js](src/lib/constants.js)，增删 board 需要前后端同步。
-3. **PIN `5185` 硬编码在前端常量**（[src/lib/constants.js](src/lib/constants.js)，由 [src/components/PinModal.jsx](src/components/PinModal.jsx) 使用），后端 RLS 完全开放——这是「协作式弱保护」选型，详见 [adr-0002](docs/30-decisions/adr-0002-frontend-pin-only-auth.md)。
+3. **PIN `5185` 硬编码在前端常量**（[src/lib/constants.js](src/lib/constants.js)，由 [src/components/PinModal.jsx](src/components/PinModal.jsx) 使用），后端 RLS 完全开放——这是「协作式弱保护」选型；编辑、删链接、删分类和删标签都必须走 PIN，详见 [adr-0002](docs/30-decisions/adr-0002-frontend-pin-only-auth.md)。
 4. **`hydrateLink` 必须在所有读路径调用一次**（fetch / insert.select / update.select），实现位于 [src/lib/linkMeta.js](src/lib/linkMeta.js)，用以兼容 legacy 数据。
 5. **Vite `base: './'`**——便于 GitHub Pages 子路径，禁止改成绝对路径。
 
@@ -96,9 +97,10 @@ Winks.闪链 —— 开放协作式书签导航站（React + Vite + Supabase + T
 ```bash
 npm install        # 安装依赖（git hooks 不会自动注册，需手动执行一次，见 §8）
 npm run dev        # 启动开发服务器（127.0.0.1:4173）
-npm test           # Node 内置测试，当前覆盖 linkMeta 纯函数
+npm test           # Node 内置测试，覆盖 linkMeta/linkActions/linksCache 合同
 npm run lint       # ESLint
 npm run build      # 生产构建
+npm run verify     # 依次执行 test + lint + build（CI / 部署门禁）
 npm run preview    # 预览构建产物
 npm run deploy     # 部署到 GitHub Pages
 ```

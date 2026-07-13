@@ -8,7 +8,6 @@ export const LinkCard = memo(function LinkCard({ link, onEdit, onDelete, onOpen 
   const imgRef = useRef(null);
   const candidates = useMemo(() => getFaviconCandidates(link.url), [link.url]);
   const current = candidates[iconIdx];
-  const favicon = current?.url;
   // Card instances are keyed by link.id, so editing a link's URL reuses the instance;
   // restart the favicon source cascade when the URL changes.
   useEffect(() => {
@@ -36,12 +35,12 @@ export const LinkCard = memo(function LinkCard({ link, onEdit, onDelete, onOpen 
   // has none we can fetch, so drop straight to the letter avatar (skip remaining candidates).
   const handleIconLoad = useCallback(
     (e) => {
-      const isFaviconV2 = favicon && favicon.includes('faviconV2');
+      const isFaviconV2 = e.currentTarget.src.includes('faviconV2');
       if (isFaviconV2 && e.currentTarget.naturalWidth > 0 && e.currentTarget.naturalWidth <= 16) {
         setIconIdx(candidates.length);
       }
     },
-    [favicon, candidates.length],
+    [candidates.length],
   );
   const handleEdit = useCallback(
     (e) => {
@@ -89,12 +88,12 @@ export const LinkCard = memo(function LinkCard({ link, onEdit, onDelete, onOpen 
       className="group relative flex flex-col p-6 pb-16 min-h-[10rem] bg-white rounded-2xl border border-gray-100 transition-[border-color,box-shadow,transform] duration-300 hover:-translate-y-1 hover:border-brand-200 hover:shadow-[0_0_30px_rgba(255,208,0,0.25)]"
       style={{ contentVisibility: 'auto', containIntrinsicSize: '160px' }}
     >
-      <div className="absolute top-4 right-4 flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity duration-200 z-10">
+      <div className="absolute top-4 right-4 flex gap-2 opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 transition-opacity duration-200 z-10">
         <button
           type="button"
           onClick={handleEdit}
           aria-label={`编辑链接：${link.title}`}
-          className="p-1.5 bg-white border border-gray-100 hover:bg-brand hover:text-white rounded-lg text-slate-600 transition-colors"
+          className="p-1.5 bg-white border border-gray-100 hover:bg-brand hover:text-brand-foreground rounded-lg text-slate-600 transition-colors"
           title="编辑"
         >
           <Pencil aria-hidden="true" className="size-3.5" />
@@ -119,11 +118,11 @@ export const LinkCard = memo(function LinkCard({ link, onEdit, onDelete, onOpen 
       >
         <div className="flex items-start justify-between mb-4">
           <div className="relative">
-            {favicon ? (
+            {current?.url ? (
               <img
                 ref={imgRef}
-                src={favicon}
-                alt={link.title}
+                src={current.url}
+                alt=""
                 width={40}
                 height={40}
                 onError={handleIconError}
@@ -133,8 +132,8 @@ export const LinkCard = memo(function LinkCard({ link, onEdit, onDelete, onOpen 
                 className="size-10 rounded-lg object-contain bg-gray-50 p-1"
               />
             ) : (
-              <div className="size-9 rounded-lg bg-brand flex items-center justify-center font-bold text-[21px] text-black">
-                {link.title.charAt(0).toUpperCase()}
+              <div aria-hidden="true" className="size-9 rounded-lg bg-brand flex items-center justify-center font-bold text-[21px] text-white">
+                {link.title.trim().charAt(0).toUpperCase() || '?'}
               </div>
             )}
           </div>
@@ -146,7 +145,7 @@ export const LinkCard = memo(function LinkCard({ link, onEdit, onDelete, onOpen 
           </h3>
           <div className="mt-2 flex flex-wrap gap-1.5">
             {link.tags.map((tag) => (
-              <span key={`${link.id}-${tag}`} className="inline-block text-xs font-medium text-gray-400 bg-gray-50 px-2 py-0.5 rounded-full">
+              <span key={`${link.id}-${tag}`} className="inline-block text-xs font-medium text-gray-500 bg-gray-50 px-2 py-0.5 rounded-full">
                 {formatTag(tag)}
               </span>
             ))}
@@ -157,7 +156,9 @@ export const LinkCard = memo(function LinkCard({ link, onEdit, onDelete, onOpen 
       <button
         type="button"
         onClick={handleCopy}
-        className={`absolute left-6 bottom-4 origin-bottom-left scale-[0.65] h-8 px-3 rounded-lg text-xs font-bold border transition-colors flex items-center gap-1 ${
+        aria-label={copied ? `已复制链接：${link.title}` : `复制链接：${link.title}`}
+        aria-live="polite"
+        className={`absolute left-6 bottom-4 h-8 px-3 rounded-lg text-xs font-bold border transition-colors flex items-center gap-1 ${
           copied
             ? 'bg-green-50 text-green-600 border-green-200'
             : 'bg-white text-gray-500 border-gray-100 hover:border-brand-200 hover:text-brand-text'

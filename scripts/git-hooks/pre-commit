@@ -4,11 +4,11 @@
 # 行为：对仓库执行 npm run lint，lint 失败则阻止提交。
 # 不要使用 --no-verify 绕过；请先修复 lint 错误。
 
-set -e
+set -euo pipefail
 
 if ! command -v npm >/dev/null 2>&1; then
-  echo "[pre-commit] npm not found in PATH. Skipping lint." >&2
-  exit 0
+  echo "[pre-commit] npm not found in PATH. Install Node.js/npm before committing." >&2
+  exit 1
 fi
 
 # 仅在 staged 文件中包含 .js / .jsx 时跑 lint，节省时间。

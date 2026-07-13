@@ -54,7 +54,7 @@
 - [x] 新增 `src/lib/linkActions.test.js`：9 个 Node 内置测试，覆盖边界与 board 隔离
 - [x] 在 hook 内提取 `runBatchUpdate` / `runSingleMutation` 两个 callback helper 统一 demo/Supabase 分支
 - [x] 进一步拆分 `handleSaveLink` → `executeUpdateLink` + `executeCreateLink` + 10 行入口函数
-- [x] `useLinks.js`：589 → 498 行（P1 完成时的快照；现 511 行，含 2026-06-14 resync 补丁）；所有 action 函数 ≤ 30 行
+- [x] `useLinks.js`：589 → 498 行（P1 完成时的快照；后续功能扩展后现约 590 行，仍低于 800 行红线）
 - [x] 验证：`npm test` 15/15 pass、`npm run lint` 零错误、`npm run build` 通过
 
 ### P1-2：综合审计（simplify + security-review + 手动）✅ 2026-05-09
@@ -131,7 +131,20 @@
 - [x] 首字母块：`#0052D9` 蓝底 → `bg-brand` 品牌黄底，白字，`text-2xl` → `text-[21px]`
 - [x] `--brand-foreground`（近黑）仅留浅黄底 `brand-200` 选区高亮（白字在浅黄不可读的可读例外）
 - [x] 验证：`npm test` 18/18、lint、build；浏览器 DOM（激活按钮 bg #FFD000 + 白字、首字母块 #FFD000 + 白字 + 21px）+ 截图
-- ⚠ 记录：白字/品牌黄对比度低（≈1.1:1，不过 WCAG），属用户有意品牌选型（见 ADR-0005）
+- ⚠ 记录：白字/品牌黄对比度低（≈1.47:1，不过 WCAG），属当时的品牌选型；本轮已按 ADR-0006 修正功能控件文字颜色
+
+### P1-9：全量 Skills 审计 + WCAG/数据/交付闭环 ✅ 2026-07-13（Codex）
+
+- [x] 覆盖审计开始时的 57 个项目文件，并复核本轮新增实现/规范文件：源码、测试、配置、锁文件、工作流、hook、SQL/迁移、文档与历史截图资产。
+- [x] 数据正确性：新增 `links_clicks_nonnegative_check` 迁移；`hydrateLink` 归一为非负整数；空数组缓存可覆盖旧快照；远端空行更新返回失败而非误报成功。
+- [x] 权限合同：删除标签纳入 `requestAuth → PinModal → executeDeleteTag`，与 ADR-0002 一致。
+- [x] WCAG：功能性黄底改近黑字；低对比灰字/placeholder 上调；筛选态补 `aria-pressed`；补 skip link、全局可见焦点、reduced motion 与 ≥24px 目标。
+- [x] 弹窗：统一原生 `<dialog>`，阻止焦点进入背景交互控件并恢复触发焦点；移动端视口与滚动实测通过。
+- [x] 可维护性：抽取 `ModalDialog` / `TaxonomyEditor` / `linksCache`；`App.jsx` 保持 200 行，`LinkModal.jsx` 397 → 269 行。
+- [x] 交付：新增 `npm run verify` 与最小权限质量 CI；部署前自动 verify；pre-commit 缺 npm 时失败关闭并补可执行位；keepalive 增加超时/重试；无 seed 项目关闭 seed。
+- [x] 依赖：`npm audit fix` 非破坏性清除 Babel / js-yaml 可修项；生产依赖 0 漏洞。
+- [ ] **远端待执行**：`supabase db push` 应用 `20260713090000_links_clicks_nonnegative_check.sql`；本轮未直接修改生产数据库。
+- [ ] **人工决策**：开放 RLS / 前端明文 PIN 仍按 ADR-0002 保留；Vite 8 major 升级另开专题。
 
 ## 4. 待规划（P2）
 
@@ -156,9 +169,9 @@
 ### P2-4：React Doctor 剩余项
 
 - [x] **2026-06-14** 补齐两个自定义 modal 的 Esc 关闭 + 初始焦点（最小无障碍修复，未迁 `<dialog>`）
-- [ ] 评估 `PinModal` / `LinkModal` 是否迁移到原生 `<dialog>`（含完整 Tab focus-trap）
+- [x] **2026-07-13** `PinModal` / `LinkModal` 已统一原生 `<dialog>`，并补关闭后焦点恢复
 - [ ] 评估 `LinkModal` 多个相关 state 是否改为 `useReducer`
-- [~] WCAG AA 对比度：先以黑配黄解决（≈13.5:1），后 **2026-06-26 用户指令改回「白配黄」**（品牌实底配白字/白图形），白字/黄底对比度低（≈1.1:1）属**有意品牌选型**，见 P1-8 / [ADR-0005](../30-decisions/adr-0005-brand-tokens-and-self-hosted-fonts.md)。白底金色 hover 文字仍用 `--brand-text`（≈4.7:1 过 AA）
+- [x] **2026-07-13** WCAG AA 功能对比度闭环：黄底功能文字/图标用近黑；白色仅保留非交互品牌闪电与装饰性首字母 fallback。见 [ADR-0006](../30-decisions/adr-0006-wcag-aa-interaction-baseline.md)
 
 ## 5. 不在本迭代
 
@@ -176,8 +189,8 @@
 | 风险 | 影响 | 缓解 |
 |---|---|---|
 | ~~私有仓库无法在当前账户方案启用 GitHub Pages~~ | ~~`www.winks.ink` 现有发布可能下线~~ | 已于 2026-06-05 恢复仓库 public，并恢复 `gh-pages:/` 发布源 |
-| `useLinks.js` 中 action 函数仍偏长 | 后续协作冲突、测试困难 | P1 拆 action helpers |
+| ~~`useLinks.js` 中 action 函数仍偏长~~ | ~~后续协作冲突、测试困难~~ | 已通过 `linkActions` 抽取主要纯逻辑；剩余 hook 总长低于单文件红线 |
 | 组件缺少 React 层测试 | UI 回归只能靠 smoke | P2 评估 Vitest + Testing Library |
 | ~~外部 favicon 404 噪音~~ | ~~Playwright 控制台有非业务错误~~ | ✅ 2026-06-25 落地多源级联 `getFaviconCandidates`（Google→直连→DuckDuckGo），命中率显著提升 |
-| Vite/esbuild dev-only 中危审计项 | 本地 dev server 在特定条件下有暴露风险 | P2 独立分支验证 Vite major 升级 |
-| 自定义 modal 未迁移 `<dialog>` | 无障碍与浏览器原生焦点管理仍可改进 | P2 独立处理，避免混入本轮审计 |
+| Vite/esbuild dev-only 1 高 + 1 中审计项 | 本地 dev server 在特定条件下有暴露风险 | P2 独立分支验证 Vite 8 major 升级；开发服务仅绑定 127.0.0.1 |
+| ~~自定义 modal 未迁移 `<dialog>`~~ | ~~无障碍与浏览器原生焦点管理仍可改进~~ | 2026-07-13 已迁移并通过键盘/移动端验收 |

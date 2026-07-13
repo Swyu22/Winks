@@ -35,6 +35,16 @@ alter table public.links
 alter table public.links
   add column if not exists clicks integer not null default 0;
 
+update public.links
+set clicks = 0
+where clicks < 0;
+
+alter table public.links
+  drop constraint if exists links_clicks_nonnegative_check;
+
+alter table public.links
+  add constraint links_clicks_nonnegative_check check (clicks >= 0);
+
 create index if not exists links_created_at_idx on public.links (created_at desc);
 create index if not exists links_created_by_idx on public.links (created_by);
 create index if not exists links_clicks_idx on public.links (clicks desc);

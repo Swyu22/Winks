@@ -29,7 +29,8 @@ jobs:
             echo "::error::Missing repo secrets VITE_SUPABASE_URL / VITE_SUPABASE_ANON_KEY"
             exit 1
           fi
-          status=$(curl -sS -o /tmp/resp -w "%{http_code}" \
+          status=$(curl -sS --connect-timeout 10 --max-time 30 --retry 2 \
+            -o /tmp/resp -w "%{http_code}" \
             "$SUPABASE_URL/rest/v1/links?select=id&limit=1" \
             -H "apikey: $SUPABASE_ANON_KEY" \
             -H "Authorization: Bearer $SUPABASE_ANON_KEY")

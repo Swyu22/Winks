@@ -89,6 +89,9 @@ test('hydrateLink carries a numeric clicks counter (defaulting to 0)', () => {
   assert.equal(hydrateLink({ id: '2', category: '开发', clicks: 7 }).clicks, 7);
   assert.equal(hydrateLink({ id: '3', category: '开发', clicks: '12' }).clicks, 12);
   assert.equal(hydrateLink({ id: '4', category: '开发', clicks: null }).clicks, 0);
+  assert.equal(hydrateLink({ id: '5', category: '开发', clicks: -3 }).clicks, 0);
+  assert.equal(hydrateLink({ id: '6', category: '开发', clicks: Number.POSITIVE_INFINITY }).clicks, 0);
+  assert.equal(hydrateLink({ id: '7', category: '开发', clicks: '4.9' }).clicks, 4);
 });
 
 test('sortClassificationsUncategorizedLast moves 未分类 to the end', () => {

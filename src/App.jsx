@@ -19,13 +19,13 @@ export default function App() {
     editingLink,
     executeAddClassification,
     executeAddTag,
-    executeDeleteTag,
     fatalError,
     filteredLinks,
     handleCloseLinkModal,
     handleClosePinModal,
     handleDeleteClassificationRequest,
     handleDeleteLinkRequest,
+    handleDeleteTagRequest,
     handleEditLinkRequest,
     handleOpenCreateModal,
     handleOpenLink,
@@ -42,7 +42,8 @@ export default function App() {
 
   return (
     <div className="min-h-screen bg-gray-50 text-slate-900 font-sans selection:bg-brand-200 selection:text-brand-foreground flex flex-col">
-      <nav className="fixed top-0 left-0 right-0 z-40 bg-white/80 backdrop-blur-md border-b border-gray-100">
+      <a href="#main-content" className="sr-only focus:not-sr-only focus:fixed focus:left-4 focus:top-4 focus:z-[70] focus:rounded-lg focus:bg-gray-950 focus:px-4 focus:py-2 focus:text-sm focus:font-bold focus:text-white">跳至主要内容</a>
+      <nav aria-label="主导航" className="fixed top-0 left-0 right-0 z-40 bg-white/80 backdrop-blur-md border-b border-gray-100">
         <div className="h-20 pl-4 pr-4 sm:pl-6 sm:pr-6 lg:pl-6 lg:pr-8 relative flex items-center justify-between lg:justify-end">
           <div className="lg:absolute lg:left-0 lg:top-1/2 lg:-translate-y-1/2 lg:w-64 lg:flex lg:items-center lg:justify-center">
             <Logo />
@@ -68,7 +69,7 @@ export default function App() {
         onDeleteClassification={handleDeleteClassificationRequest}
       />
 
-      <main className="w-full px-6 pt-28 pb-20 flex-grow lg:pl-[18.5rem]">
+      <main id="main-content" tabIndex={-1} className="w-full px-6 pt-28 pb-20 flex-grow lg:pl-[18.5rem]">
         <div className="max-w-7xl mx-auto">
           <MobileCategoryBar
             classifications={displayClassifications}
@@ -82,6 +83,7 @@ export default function App() {
                 key={board}
                 type="button"
                 onClick={() => handleSelectBoard(board)}
+                aria-pressed={activeBoard === board}
                 className={`px-4 py-2 rounded-full text-sm font-bold transition-colors ${
                   activeBoard === board
                     ? 'bg-gray-900 text-white'
@@ -106,9 +108,10 @@ export default function App() {
             <button
               type="button"
               onClick={() => handleSelectTagFilter(ALL_FILTER)}
+              aria-pressed={tagFilter === ALL_FILTER}
               className={`px-4 py-2 rounded-full text-sm font-bold transition-colors whitespace-nowrap ${
                 tagFilter === ALL_FILTER
-                  ? 'bg-brand text-white shadow-[0_4px_15px_rgba(255,208,0,0.4)]'
+                  ? 'bg-brand text-brand-foreground shadow-[0_4px_15px_rgba(255,208,0,0.4)]'
                   : 'bg-white text-gray-500 border border-gray-100 hover:border-brand-200 hover:text-brand-text'
               }`}
             >
@@ -119,9 +122,10 @@ export default function App() {
                 key={tag}
                 type="button"
                 onClick={() => handleSelectTagFilter(tag)}
+                aria-pressed={tagFilter === tag}
                 className={`px-4 py-2 rounded-full text-sm font-bold transition-colors whitespace-nowrap ${
                   tagFilter === tag
-                    ? 'bg-brand text-white shadow-[0_4px_15px_rgba(255,208,0,0.4)]'
+                    ? 'bg-brand text-brand-foreground shadow-[0_4px_15px_rgba(255,208,0,0.4)]'
                     : 'bg-white text-gray-500 border border-gray-100 hover:border-brand-200 hover:text-brand-text'
                 }`}
               >
@@ -131,7 +135,7 @@ export default function App() {
           </div>
 
           {fatalError ? (
-            <div className="text-center py-20 border-2 border-dashed border-red-200 rounded-3xl bg-red-50/40">
+            <div role="alert" className="text-center py-20 border-2 border-dashed border-red-200 rounded-3xl bg-red-50/40">
               <div className="size-16 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4 text-red-500">
                 <X aria-hidden="true" className="size-8" />
               </div>
@@ -160,7 +164,7 @@ export default function App() {
                     <Search aria-hidden="true" className="size-8" />
                   </div>
                   <h3 className="text-gray-900 font-semibold text-lg">未找到链接</h3>
-                  <p className="text-gray-400 mt-1">尝试切换标签或分类，或添加新的链接。</p>
+                  <p className="text-gray-500 mt-1">尝试切换标签或分类，或添加新的链接。</p>
                 </div>
               )}
             </>
@@ -176,7 +180,7 @@ export default function App() {
         tags={activeTags}
         classifications={activeClassifications}
         onAddTag={executeAddTag}
-        onDeleteTag={executeDeleteTag}
+        onDeleteTag={handleDeleteTagRequest}
         onAddClassification={executeAddClassification}
         onDeleteClassification={handleDeleteClassificationRequest}
       />
@@ -187,7 +191,7 @@ export default function App() {
         onSuccess={handlePinSuccess}
       />
 
-      <footer className="text-center py-8 text-gray-400 text-xs font-medium leading-relaxed bg-white/50 border-t border-gray-100">
+      <footer className="text-center py-8 text-gray-500 text-xs font-medium leading-relaxed bg-white/50 border-t border-gray-100">
         <p>Copyright © <span className="font-mono">2011-2026</span> WithMedia Co.Ltd all rights reserved</p>
         <p className="mt-1 opacity-70">内部使用 请勿外传</p>
       </footer>
