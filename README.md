@@ -65,4 +65,4 @@ npm run verify
 npm run deploy
 ```
 
-`npm run deploy` 的 `predeploy` 也会自动执行测试、lint 与生产构建。PR 和 `main` push 由 `.github/workflows/quality.yml` 执行同一套检查。
+Supabase 模式发布前，先在当前 shell 提供 `VITE_SUPABASE_URL` / `VITE_SUPABASE_ANON_KEY`（或使用已忽略的本地 `.env`）；Demo 发布则显式设置 `VITE_DEMO_MODE=true`。`predeploy` 会拒绝缺少运行配置的构建，再自动执行测试、lint 与生产构建。PR 和 `main` push 由 `.github/workflows/quality.yml` 执行同一套检查。

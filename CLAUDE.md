@@ -102,7 +102,7 @@ npm run lint       # ESLint
 npm run build      # 生产构建
 npm run verify     # 依次执行 test + lint + build（CI / 部署门禁）
 npm run preview    # 预览构建产物
-npm run deploy     # 部署到 GitHub Pages
+npm run deploy     # 校验 Supabase/Demo 环境后部署到 GitHub Pages
 ```
 
 ## 8. Git Hook（仓库级）

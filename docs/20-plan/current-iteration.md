@@ -143,6 +143,8 @@
 - [x] 可维护性：抽取 `ModalDialog` / `TaxonomyEditor` / `linksCache`；`App.jsx` 保持 200 行，`LinkModal.jsx` 397 → 269 行。
 - [x] 交付：新增 `npm run verify` 与最小权限质量 CI；部署前自动 verify；pre-commit 缺 npm 时失败关闭并补可执行位；keepalive 增加超时/重试；无 seed 项目关闭 seed。
 - [x] 依赖：`npm audit fix` 非破坏性清除 Babel / js-yaml 可修项；生产依赖 0 漏洞。
+- [x] 发布：实现提交 `2ddac5e` 已推送；Quality workflow 成功；Pages `5c0aa593` built；生产 Supabase 200、28 张卡片、弹窗和首行对齐 smoke 通过。
+- [x] 防复发：`predeploy` 在 Supabase 模式缺少公开运行变量时失败关闭，Demo 发布须显式启用 `VITE_DEMO_MODE=true`。
 - [ ] **远端待执行**：`supabase db push` 应用 `20260713090000_links_clicks_nonnegative_check.sql`；本轮未直接修改生产数据库。
 - [ ] **人工决策**：开放 RLS / 前端明文 PIN 仍按 ADR-0002 保留；Vite 8 major 升级另开专题。
 
